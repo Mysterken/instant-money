@@ -19,7 +19,7 @@
 		}
 	}
 
-	root /app/public
+	root * /app/public
 	encode zstd br gzip
 
 	mercure {
@@ -44,14 +44,7 @@
 	# Disable Topics tracking if not enabled explicitly: https://github.com/jkarlin/topics
 	header ?Permissions-Policy "browsing-topics=()"
 
-	@phpRoute {
-		not path /.well-known/mercure*
-		not file {path}
-	}
-	rewrite @phpRoute index.php
+	php_server
 
-	@frontController path index.php
-	php @frontController
-
-	file_server
+	reverse_proxy /* money_app:{$NODE_PORT:5173}
 }

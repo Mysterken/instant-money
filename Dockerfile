@@ -2,6 +2,7 @@
 
 # Versions
 FROM dunglas/frankenphp:1-php8.3 AS frankenphp_upstream
+FROM node:23.4-alpine3.21 AS node_upstream
 
 # The different stages of this Dockerfile are meant to be built into separate images
 # https://docs.docker.com/develop/develop-images/multistage-build/#stop-at-a-specific-build-stage
@@ -83,7 +84,7 @@ RUN set -eux; \
 	composer install --no-cache --prefer-dist --no-dev --no-autoloader --no-scripts --no-progress
 
 # copy sources
-COPY --link . ./
+COPY --link ./money-api ./
 RUN rm -Rf frankenphp/
 
 RUN set -eux; \
@@ -92,3 +93,29 @@ RUN set -eux; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
 	chmod +x bin/console; sync;
+
+# Base node image
+FROM node_upstream AS node_base
+
+ENV NODE_PORT ${NODE_PORT}
+
+# Create app directory
+WORKDIR /usr/src/app
+
+COPY --link docker/node/docker-entrypoint.sh /usr/local/bin/docker-entrypoint
+RUN chmod +x /usr/local/bin/docker-entrypoint
+
+EXPOSE ${NODE_PORT}
+ENTRYPOINT ["docker-entrypoint"]
+
+# Dev node image
+FROM node_base AS node_dev
+
+ENV NODE_ENV=development
+CMD ["yarn", "dev"]
+
+# Prod node image
+FROM node_base AS node_prod
+
+ENV NODE_ENV=production
+CMD ["yarn", "start"]
