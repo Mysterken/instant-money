@@ -5,7 +5,7 @@ services:
       context: .
       target: frankenphp_dev
     volumes:
-      - ./:/app
+      - ./money-api:/app
       - ./frankenphp/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./frankenphp/conf.d/20-app.dev.ini:/usr/local/etc/php/app.conf.d/20-app.dev.ini:ro
       # If you develop on Mac or Windows you can remove the vendor/ directory
@@ -19,6 +19,13 @@ services:
       # Ensure that host.docker.internal is correctly defined on Linux
       - host.docker.internal:host-gateway
     tty: true
+    
+  node:
+    build:
+      context: .
+      target: node_dev
+    volumes:
+      - ./money-app:/usr/src/app
 
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
