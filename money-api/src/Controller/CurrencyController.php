@@ -54,6 +54,12 @@ class CurrencyController extends AbstractController
             : $this->currencyRepository->findBy(['code' => explode(',', $currencies)]);
 
         if (!empty($DBcurrencies)) {
+            // add the code of the currency as the key of the array and 'data' as the key above everything
+            $DBcurrencies = array_reduce($DBcurrencies, function ($acc, $currency) {
+                $acc[$currency->getCode()] = $currency;
+                return $acc;
+            }, []);
+            $DBcurrencies = ['data' => $DBcurrencies];
             return new JsonResponse($this->serializer->normalize($DBcurrencies, 'json'));
         }
 
