@@ -60,7 +60,7 @@ class CurrencyController extends AbstractController
                 return $acc;
             }, []);
             $DBcurrencies = ['data' => $DBcurrencies];
-            return new JsonResponse($this->serializer->normalize($DBcurrencies, 'json'));
+            return new JsonResponse($this->serializer->normalize(['data' => $DBcurrencies], 'json'));
         }
 
         $response = $this->fetchData('/v1/currencies', ['currencies' => $currencies]);
@@ -78,7 +78,8 @@ class CurrencyController extends AbstractController
         }, $response['data']);
 
         $this->entityManager->flush();
-        return new JsonResponse($this->serializer->normalize($currencies, 'json'));
+
+        return new JsonResponse($this->serializer->normalize(['data' => $currencies], 'json'));
     }
 
     #[Route('/api/currency_latest', name: 'app_currency_latest')]
