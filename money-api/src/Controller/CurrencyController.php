@@ -47,48 +47,32 @@ class CurrencyController extends AbstractController
     }
 
     #[Route('/api/currency_list', name: 'app_currency_list')]
-    public function list(
-        #[MapQueryParameter] string $currencies = 'EUR',
-
-    ): JsonResponse
+    public function list(#[MapQueryParameter] string $currencies = 'EUR'): JsonResponse
     {
-
-        if (empty($currencies)) {
-            $DBcurrencies = $this->currencyRepository->findAll();
-        } else {
-            $currencies = explode(',', $currencies);
-            $DBcurrencies = $this->currencyRepository->findBy(['code' => $currencies]);
-        }
+        $DBcurrencies = empty($currencies)
+            ? $this->currencyRepository->findAll()
+            : $this->currencyRepository->findBy(['code' => explode(',', $currencies)]);
 
         if (!empty($DBcurrencies)) {
-            $DBcurrencies = $this->serializer->normalize($DBcurrencies, 'json');
-            return new JsonResponse($DBcurrencies);
+            return new JsonResponse($this->serializer->normalize($DBcurrencies, 'json'));
         }
 
-        // if the currencies are not in the database, we fetch them from the API
-        $response = $this->fetchData('/v1/currencies', [
-            'currencies' => $currencies
-        ]);
-
-        $currencies = [];
-        foreach ($response['data'] as $currencyData) {
-            $currency = new Currency();
-            $currency->setCode($currencyData['code']);
-            $currency->setName($currencyData['name']);
-            $currency->setSymbol($currencyData['symbol']);
-            $currency->setSymbolNative($currencyData['symbol_native']);
-            $currency->setDecimalDigits($currencyData['decimal_digits']);
-            $currency->setRounding($currencyData['rounding']);
-            $currency->setNamePlural($currencyData['name_plural']);
-
+        $response = $this->fetchData('/v1/currencies', ['currencies' => $currencies]);
+        $currencies = array_map(function ($currencyData) {
+            $currency = (new Currency())
+                ->setCode($currencyData['code'])
+                ->setName($currencyData['name'])
+                ->setSymbol($currencyData['symbol'])
+                ->setSymbolNative($currencyData['symbol_native'])
+                ->setDecimalDigits($currencyData['decimal_digits'])
+                ->setRounding($currencyData['rounding'])
+                ->setNamePlural($currencyData['name_plural']);
             $this->entityManager->persist($currency);
-            $currencies[] = $currency;
-        }
+            return $currency;
+        }, $response['data']);
 
         $this->entityManager->flush();
-
-        $currencies = $this->serializer->normalize($currencies, 'json');
-        return new JsonResponse($currencies);
+        return new JsonResponse($this->serializer->normalize($currencies, 'json'));
     }
 
     #[Route('/api/currency_latest', name: 'app_currency_latest')]
