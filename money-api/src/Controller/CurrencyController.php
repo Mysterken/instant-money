@@ -3,7 +3,10 @@
 namespace App\Controller;
 
 use App\Entity\Currency;
+use App\Entity\HistoricalExchangeRate;
 use App\Repository\CurrencyRepository;
+use App\Repository\HistoricalExchangeRateRepository;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -20,6 +23,7 @@ class CurrencyController extends AbstractController
 
     public function __construct(
         private readonly CurrencyRepository $currencyRepository,
+        private readonly HistoricalExchangeRateRepository $historicalExchangeRateRepository,
         private readonly EntityManagerInterface $entityManager,
         private readonly SerializerInterface $serializer
     )
@@ -59,7 +63,6 @@ class CurrencyController extends AbstractController
                 $acc[$currency->getCode()] = $currency;
                 return $acc;
             }, []);
-            $DBcurrencies = ['data' => $DBcurrencies];
             return new JsonResponse($this->serializer->normalize(['data' => $DBcurrencies], 'json'));
         }
 
