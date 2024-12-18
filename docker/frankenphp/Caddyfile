@@ -46,5 +46,8 @@
 
 	php_server
 
-	reverse_proxy /* money_app:{$NODE_PORT:5173}
+    # Reverse proxy everything except /api/
+	@notAPI not path /api/*
+	reverse_proxy @notAPI money_app:{$NODE_PORT:5173}
+
 }
