@@ -6,6 +6,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Annotation\Route;
 
 class CurrencyController extends AbstractController
@@ -21,10 +22,11 @@ class CurrencyController extends AbstractController
     /**
      * @throws GuzzleException
      */
-    private function fetchData(string $endpoint): array
+    private function fetchData(string $endpoint, array $queryParameters = []): array
     {
+        $queryParameters['apikey'] = $_ENV['CURRENCY_APIKEY'];
         $response = $this->client->request('GET', self::API_URL . $endpoint, [
-            'query' => ['apikey' => $_ENV['CURRENCY_APIKEY']]
+            'query' => $queryParameters
         ]);
 
         return json_decode($response->getBody()->getContents(), true);
@@ -37,20 +39,39 @@ class CurrencyController extends AbstractController
     }
 
     #[Route('/api/currency_list', name: 'app_currency_list')]
-    public function list(): JsonResponse
+    public function list(
+        #[MapQueryParameter] string $currencies = '',
+
+    ): JsonResponse
     {
-        return new JsonResponse($this->fetchData('/v1/currencies'));
+        return new JsonResponse($this->fetchData('/v1/currencies', [
+            'currencies' => $currencies
+        ]));
     }
 
     #[Route('/api/currency_latest', name: 'app_currency_latest')]
-    public function latest(): JsonResponse
+    public function latest(
+        #[MapQueryParameter] string $base_currency = '',
+        #[MapQueryParameter] string $currencies = '',
+    ): JsonResponse
     {
-        return new JsonResponse($this->fetchData('/v1/latest'));
+        return new JsonResponse($this->fetchData('/v1/latest', [
+            'base_currency' => $base_currency,
+            'currencies' => $currencies
+        ]));
     }
 
     #[Route('/api/currency_historical', name: 'app_currency_historical')]
-    public function historical(): JsonResponse
+    public function historical(
+        #[MapQueryParameter] string $date = '',
+        #[MapQueryParameter] string $base_currency = '',
+        #[MapQueryParameter] string $currencies = '',
+    ): JsonResponse
     {
-        return new JsonResponse($this->fetchData('/v1/historical'));
+        return new JsonResponse($this->fetchData('/v1/historical', [
+            'date' => $date,
+            'base_currency' => $base_currency,
+            'currencies' => $currencies
+        ]));
     }
 }
