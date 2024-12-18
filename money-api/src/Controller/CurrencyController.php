@@ -47,7 +47,7 @@ class CurrencyController extends AbstractController
     }
 
     #[Route('/api/currency_list', name: 'app_currency_list')]
-    public function list(#[MapQueryParameter] string $currencies = 'EUR'): JsonResponse
+    public function list(#[MapQueryParameter] string $currencies = ''): JsonResponse
     {
         $DBcurrencies = empty($currencies)
             ? $this->currencyRepository->findAll()
