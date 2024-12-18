@@ -12,6 +12,21 @@ class CurrencyController extends AbstractController
 {
     const API_URL = 'https://api.freecurrencyapi.com';
 
+    /**
+     * @throws GuzzleException
+     */
+    #[Route('/api/currency_list', name: 'app_currency_list')]
+    public function list(): JsonResponse
+    {
+        $client = new Client();
+
+        $res = $client->request('GET', self::API_URL . '/v1/currencies', [
+            'query' => ['apikey' => $_ENV['CURRENCY_APIKEY']]
+        ]);
+
+        return new JsonResponse(json_decode($res->getBody()->getContents(), true));
+    }
+
     #[Route('/api/currency_status', name: 'app_currency_status')]
     public function status(): JsonResponse
     {
