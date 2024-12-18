@@ -17,6 +17,18 @@ function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    axios.get("https://localhost/api/currency_list")
+      .then((response) => {
+        setData(response.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Erreur lors du chargement du fichier JSON :", err);
+        setError("Erreur lors du chargement des taux.");
+        setLoading(false);
+      });
+  }, []);
+  useEffect(() => {
 
     axios.get("https://localhost/api/currency_latest")
       .then((response) => {
