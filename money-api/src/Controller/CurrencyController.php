@@ -2,19 +2,27 @@
 
 namespace App\Controller;
 
+use App\Entity\Currency;
+use App\Repository\CurrencyRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class CurrencyController extends AbstractController
 {
     private const API_URL = 'https://api.freecurrencyapi.com';
     private Client $client;
 
-    public function __construct()
+    public function __construct(
+        private readonly CurrencyRepository $currencyRepository,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly SerializerInterface $serializer
+    )
     {
         $this->client = new Client();
     }
@@ -40,13 +48,47 @@ class CurrencyController extends AbstractController
 
     #[Route('/api/currency_list', name: 'app_currency_list')]
     public function list(
-        #[MapQueryParameter] string $currencies = '',
+        #[MapQueryParameter] string $currencies = 'EUR',
 
     ): JsonResponse
     {
-        return new JsonResponse($this->fetchData('/v1/currencies', [
+
+        if (empty($currencies)) {
+            $DBcurrencies = $this->currencyRepository->findAll();
+        } else {
+            $currencies = explode(',', $currencies);
+            $DBcurrencies = $this->currencyRepository->findBy(['code' => $currencies]);
+        }
+
+        if (!empty($DBcurrencies)) {
+            $DBcurrencies = $this->serializer->normalize($DBcurrencies, 'json');
+            return new JsonResponse($DBcurrencies);
+        }
+
+        // if the currencies are not in the database, we fetch them from the API
+        $response = $this->fetchData('/v1/currencies', [
             'currencies' => $currencies
-        ]));
+        ]);
+
+        $currencies = [];
+        foreach ($response['data'] as $currencyData) {
+            $currency = new Currency();
+            $currency->setCode($currencyData['code']);
+            $currency->setName($currencyData['name']);
+            $currency->setSymbol($currencyData['symbol']);
+            $currency->setSymbolNative($currencyData['symbol_native']);
+            $currency->setDecimalDigits($currencyData['decimal_digits']);
+            $currency->setRounding($currencyData['rounding']);
+            $currency->setNamePlural($currencyData['name_plural']);
+
+            $this->entityManager->persist($currency);
+            $currencies[] = $currency;
+        }
+
+        $this->entityManager->flush();
+
+        $currencies = $this->serializer->normalize($currencies, 'json');
+        return new JsonResponse($currencies);
     }
 
     #[Route('/api/currency_latest', name: 'app_currency_latest')]
