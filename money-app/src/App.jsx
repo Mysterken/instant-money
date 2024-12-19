@@ -39,7 +39,6 @@ function App() {
     </div>
   );
 }
-
 export default App;*/
 
 //API -> JSON
