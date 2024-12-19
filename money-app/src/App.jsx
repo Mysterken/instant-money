@@ -76,15 +76,22 @@ const App = () => {
     const fetchCurrencies = async () => {
       try {
         const response = await axios.get("/api/currency_list");
-        const currencies = response.data;
+        const currencies = response.data.data;
         console.log(currencies)
-        if (currencies && Array.isArray(currencies)) {
-          setCurrenciesOptions(
-            currencies.map((currency) => ({
+        if (currencies) {
+          
+          const currenciesOption = []
+
+          for (const [key, currency] of Object.entries(currencies)) {
+            currenciesOption.push({
               value: currency.code,
-              label: `${currency.code} (${currency.name})`,
-            }))
-          );
+              label: currency.name
+            })
+          }
+          
+          setCurrenciesOptions(
+            currenciesOption
+          )
         } else {
           console.error("Données invalides pour les devises :", currencies);
         }
@@ -99,9 +106,12 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const endpoint = timeFilter === "year" ? "/api/currency_historical" : "/api/currency_latest";
+        const endpoint =
+          timeFilter === "year"
+            ? "/api/currency_historical"
+            : "/api/currency_latest";
         const response = await axios.get(endpoint);
-        const ratesData = response.data;
+        const ratesData = response.data.data; // Assurez-vous que les données sont sous "data"
         if (ratesData && Array.isArray(ratesData)) {
           setData(ratesData);
           setFilteredData(ratesData);
@@ -112,10 +122,9 @@ const App = () => {
         console.error("Erreur lors de la récupération des données :", error);
       }
     };
-  
+
     fetchData();
   }, [timeFilter]);
-  
 
   // Filtrage des données selon les devises sélectionnées
   const filteredGraphData = filteredData.map((entry) => {
@@ -150,7 +159,7 @@ const App = () => {
         <Select
           options={timeOptions}
           onChange={(selectedOption) => setTimeFilter(selectedOption.value)}
-          defaultValue={timeOptions[1]} // Par défaut : Par mois
+          defaultValue={timeOptions[1]}
         />
       </div>
 
@@ -172,11 +181,11 @@ const App = () => {
               type="monotone"
               dataKey={currency}
               stroke={
-                currency === "USD"
+                currency.code === "USD"
                   ? "#8884d8"
-                  : currency === "EUR"
+                  : currency.code === "EUR"
                   ? "#82ca9d"
-                  : currency === "GBP"
+                  : currency.code === "GBP"
                   ? "#ffc658"
                   : "#d84a44" // Couleur par défaut pour les autres devises
               }
