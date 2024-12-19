@@ -6,6 +6,7 @@ use App\Entity\Currency;
 use App\Entity\HistoricalExchangeRate;
 use App\Repository\CurrencyRepository;
 use App\Repository\HistoricalExchangeRateRepository;
+use DateMalformedStringException;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use GuzzleHttp\Client;
@@ -22,13 +23,19 @@ class CurrencyController extends AbstractController
     private Client $client;
 
     public function __construct(
-        private readonly CurrencyRepository $currencyRepository,
+        private readonly CurrencyRepository               $currencyRepository,
         private readonly HistoricalExchangeRateRepository $historicalExchangeRateRepository,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly SerializerInterface $serializer
+        private readonly EntityManagerInterface           $entityManager,
+        private readonly SerializerInterface              $serializer
     )
     {
         $this->client = new Client();
+    }
+
+    #[Route('/api/currency_status', name: 'app_currency_status')]
+    public function status(): JsonResponse
+    {
+        return new JsonResponse($this->fetchData('/v1/status'));
     }
 
     /**
@@ -42,12 +49,6 @@ class CurrencyController extends AbstractController
         ]);
 
         return json_decode($response->getBody()->getContents(), true);
-    }
-
-    #[Route('/api/currency_status', name: 'app_currency_status')]
-    public function status(): JsonResponse
-    {
-        return new JsonResponse($this->fetchData('/v1/status'));
     }
 
     #[Route('/api/currency_list', name: 'app_currency_list')]
@@ -98,7 +99,7 @@ class CurrencyController extends AbstractController
     }
 
     /**
-     * @throws \DateMalformedStringException
+     * @throws DateMalformedStringException
      * @throws GuzzleException
      */
     #[Route('/api/currency_historical', name: 'app_currency_historical')]
@@ -108,73 +109,50 @@ class CurrencyController extends AbstractController
         #[MapQueryParameter] string $currencies = '',
     ): JsonResponse
     {
-        if (empty($date)) {
-            $date = (new DateTime())->modify('-1 day')->format('Y-m-d');
-        }
-
-        $dateObject = new DateTime($date);
+        $dateObject = new DateTime($date ?: 'yesterday');
         $dateToday = new DateTime();
 
-        // if the date is in the future, we return an error
-        if ($dateObject > $dateToday) {
-            return new JsonResponse([
-                'error' => 'Date cannot be in the future'
-            ], 400);
+        if ($dateObject > $dateToday || $dateObject->format('Y-m-d') === $dateToday->format('Y-m-d')) {
+            return new JsonResponse(['error' => 'Invalid date'], 400);
         }
 
-        if ($dateObject->format('Y-m-d') === $dateToday->format('Y-m-d')) {
-            return new JsonResponse([
-                'error' => 'Date cannot be today'
-            ], 400);
+        if (!$this->currencyRepository->findAll()) {
+            return new JsonResponse(['error' => 'No currencies found in the database'], 400);
         }
 
-        if (empty($this->currencyRepository->findAll())) {
-            return new JsonResponse([
-                'error' => 'No currencies found in the database'
-            ], 400);
-        }
-
-        // for each currency in $currencies we check if it's a valid currency by code
         foreach (explode(',', $currencies) as $currency) {
-            if (empty($currency)) {
-                continue;
-            }
-            if (!$this->currencyRepository->findOneBy(['code' => $currency])) {
-                return new JsonResponse([
-                    'error' => "Currency not found in the database: $currency"
-                ], 400);
+            if ($currency && !$this->currencyRepository->findOneBy(['code' => $currency])) {
+                return new JsonResponse(['error' => "Currency not found: $currency"], 400);
             }
         }
 
-        // if $currencies is empty, we check against all the currencies in the database
-        if (empty($currencies)) {
-            $currencies = implode(',', array_map(function ($currency) {
-                return $currency->getCode();
-            }, $this->currencyRepository->findAll()));
-        }
+        // If no currencies are provided, get all the currencies from the database
+        $currencies = $currencies ?: implode(',', array_map(fn($currency) => $currency->getCode(), $this->currencyRepository->findAll()));
 
+        // Check if the historical exchange rates are already in the database by date and base currency
         $historicalExchangeRates = $this->historicalExchangeRateRepository->findBy([
             'date' => $dateObject,
             'base_currency' => $this->currencyRepository->findOneBy(['code' => $base_currency]),
         ]);
 
+        // Return the data from the database if it exists
         if ($historicalExchangeRates) {
-            $data = [];
-            foreach ($historicalExchangeRates as $historicalExchangeRate) {
-                $data[$historicalExchangeRate->getDate()->format('Y-m-d')][$historicalExchangeRate->getCurrency()->getCode()] = $historicalExchangeRate->getValue();
-            }
+            $data = array_reduce($historicalExchangeRates, function ($acc, $rate) {
+                $acc[$rate->getDate()->format('Y-m-d')][$rate->getCurrency()->getCode()] = $rate->getValue();
+                return $acc;
+            }, []);
 
             return new JsonResponse($this->serializer->normalize(['data' => $data], 'json'));
         }
 
+        // Fetch the data from the API and save it to the database
         $response = $this->fetchData('/v1/historical', [
-            'date' => $date,
+            'date' => $dateObject->format('Y-m-d'),
             'base_currency' => $base_currency,
             'currencies' => $currencies
         ]);
 
-        // we need to save the data in the database for each currency
-        foreach ($response['data'][$date] as $currency => $value) {
+        foreach ($response['data'][$dateObject->format('Y-m-d')] as $currency => $value) {
             $historicalExchangeRate = (new HistoricalExchangeRate())
                 ->setDate($dateObject)
                 ->setBaseCurrency($this->currencyRepository->findOneBy(['code' => $base_currency]))
