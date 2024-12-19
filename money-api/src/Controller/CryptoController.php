@@ -51,25 +51,35 @@ class CryptoController extends AbstractController
     #[Route('/api/crypto_list', name: 'app_crypto_list')]
     public function list(): JsonResponse
     {
-        ini_set('memory_limit', '256M');
+        $DBcoins = $this->coinRepository->findAll() ?: $this->fetchAndPersistCoins();
 
-        $DBcoins = $this->coinRepository->findAll();
-
-        if (empty($DBcoins)) {
-            foreach ($this->fetchData('/v3/coins/list') as $coin) {
-                $coinEntity = new Coin();
-                $coinEntity->setId($coin['id']);
-                $coinEntity->setSymbol($coin['symbol']);
-                $coinEntity->setName($coin['name']);
-
-                $this->entityManager->persist($coinEntity);
-                $DBcoins[] = $coinEntity;
-            }
-
-            $this->entityManager->flush();
-        }
+        $DBcoins = array_map(fn($coin) => [
+            'id' => $coin->getId(),
+            'symbol' => $coin->getSymbol(),
+            'name' => $coin->getName()
+        ], $DBcoins);
 
         return new JsonResponse($this->serializer->normalize($DBcoins, 'json'));
+    }
+
+    private function fetchAndPersistCoins(): array
+    {
+        ini_set('memory_limit', '256M');
+        $coins = $this->fetchData('/v3/coins/list');
+        $DBcoins = [];
+
+        foreach ($coins as $coin) {
+            $coinEntity = (new Coin())
+                ->setId($coin['id'])
+                ->setSymbol($coin['symbol'])
+                ->setName($coin['name']);
+
+            $this->entityManager->persist($coinEntity);
+            $DBcoins[] = $coinEntity;
+        }
+
+        $this->entityManager->flush();
+        return $DBcoins;
     }
 
     /**
