@@ -98,13 +98,12 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const endpoint =
-          timeFilter === "year"
-            ? "/api/currency_historical"
-            : "/api/currency_latest";
+        const endpoint ="/api/currency_historical"
 
-        const response = await axios.get(endpoint);
-        const ratesData = response.data.data;
+        const response = await axios.get(endpoint+"?date=2024-12-18");
+        const response2 = await axios.get(endpoint+"?date=2023-12-18");
+        const ratesData = response.data.data["2024-12-18"];
+        const ratesData2 = response2.data.data["2023-12-18"];
 
         if (ratesData) {
           if (timeFilter === "year") {
@@ -115,14 +114,21 @@ const App = () => {
                 ...rates, // Inclure toutes les devises avec leurs valeurs
               })
             );
+            console.log(formattedData)
             setData(formattedData);
           } else {
             // Formatage pour les taux récents
             const today = new Date().toISOString().split("T")[0];
+            console.log(ratesData)
+            console.log(ratesData2)
             setData([
               {
-                date: today,
+                date: "2023-12-19",
                 ...ratesData,
+              },
+              {
+                date: "2024-12-18",
+                ...ratesData2,
               },
             ]);
           }
