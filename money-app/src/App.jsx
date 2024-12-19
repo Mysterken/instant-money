@@ -65,33 +65,24 @@ const timeOptions = [
 ];
 
 const App = () => {
-  const [data, setData] = useState([]); // Les données brutes récupérées via Axios
-  const [filteredData, setFilteredData] = useState([]); // Les données filtrées selon les options
-  const [currenciesOptions, setCurrenciesOptions] = useState([]); // Options dynamiques pour les devises
-  const [selectedCurrencies, setSelectedCurrencies] = useState([]);
-  const [timeFilter, setTimeFilter] = useState("month");
+  const [data, setData] = useState([]); // Données brutes
+  const [currenciesOptions, setCurrenciesOptions] = useState([]); // Options des devises
+  const [selectedCurrencies, setSelectedCurrencies] = useState([]); // Devises sélectionnées
+  const [timeFilter, setTimeFilter] = useState("month"); // Filtre temporel
 
-  // Fonction pour récupérer la liste des devises (dropdown dynamique)
+  // Récupération des devises au chargement
   useEffect(() => {
     const fetchCurrencies = async () => {
       try {
         const response = await axios.get("/api/currency_list");
         const currencies = response.data.data;
-        console.log(currencies)
-        if (currencies) {
-          
-          const currenciesOption = []
 
-          for (const [key, currency] of Object.entries(currencies)) {
-            currenciesOption.push({
-              value: currency.code,
-              label: currency.name
-            })
-          }
-          
-          setCurrenciesOptions(
-            currenciesOption
-          )
+        if (currencies) {
+          const options = Object.entries(currencies).map(([key, currency]) => ({
+            value: currency.code,
+            label: currency.name,
+          }));
+          setCurrenciesOptions(options);
         } else {
           console.error("Données invalides pour les devises :", currencies);
         }
@@ -99,10 +90,11 @@ const App = () => {
         console.error("Erreur lors de la récupération des devises :", error);
       }
     };
-  
+
     fetchCurrencies();
   }, []);
-  
+
+  // Récupération des données selon le filtre temporel
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -110,11 +102,30 @@ const App = () => {
           timeFilter === "year"
             ? "/api/currency_historical"
             : "/api/currency_latest";
+
         const response = await axios.get(endpoint);
-        const ratesData = response.data.data; // Assurez-vous que les données sont sous "data"
-        if (ratesData && Array.isArray(ratesData)) {
-          setData(ratesData);
-          setFilteredData(ratesData);
+        const ratesData = response.data.data;
+
+        if (ratesData) {
+          if (timeFilter === "year") {
+            // Formatage des données pour les taux historiques
+            const formattedData = Object.entries(ratesData).map(
+              ([date, rates]) => ({
+                date,
+                ...rates, // Inclure toutes les devises avec leurs valeurs
+              })
+            );
+            setData(formattedData);
+          } else {
+            // Formatage pour les taux récents
+            const today = new Date().toISOString().split("T")[0];
+            setData([
+              {
+                date: today,
+                ...ratesData,
+              },
+            ]);
+          }
         } else {
           console.error("Données invalides pour les cours :", ratesData);
         }
@@ -126,8 +137,8 @@ const App = () => {
     fetchData();
   }, [timeFilter]);
 
-  // Filtrage des données selon les devises sélectionnées
-  const filteredGraphData = filteredData.map((entry) => {
+  // Filtrage des données pour le graphique
+  const filteredGraphData = data.map((entry) => {
     const filteredEntry = { date: entry.date }; // Inclure la date dans chaque entrée
     selectedCurrencies.forEach((currency) => {
       if (entry[currency]) {
@@ -141,7 +152,7 @@ const App = () => {
     <div style={{ padding: "20px" }}>
       <h1>Évolution des Cours de Change</h1>
 
-      {/* Dropdown pour les devises */}
+      {/* Menu déroulant pour sélectionner les devises */}
       <div style={{ marginBottom: "20px" }}>
         <label>Sélectionnez les devises à afficher :</label>
         <Select
@@ -153,13 +164,13 @@ const App = () => {
         />
       </div>
 
-      {/* Dropdown pour le filtre temporel */}
+      {/* Menu déroulant pour le filtre temporel */}
       <div style={{ marginBottom: "20px" }}>
         <label>Filtrer l'évolution par :</label>
         <Select
           options={timeOptions}
           onChange={(selectedOption) => setTimeFilter(selectedOption.value)}
-          defaultValue={timeOptions[1]}
+          defaultValue={timeOptions[1]} // Par défaut, "Par mois"
         />
       </div>
 
@@ -180,15 +191,7 @@ const App = () => {
               key={currency}
               type="monotone"
               dataKey={currency}
-              stroke={
-                currency.code === "USD"
-                  ? "#8884d8"
-                  : currency.code === "EUR"
-                  ? "#82ca9d"
-                  : currency.code === "GBP"
-                  ? "#ffc658"
-                  : "#d84a44" // Couleur par défaut pour les autres devises
-              }
+              stroke="#8884d8" // Couleur par défaut
               activeDot={{ r: 8 }}
             />
           ))}
