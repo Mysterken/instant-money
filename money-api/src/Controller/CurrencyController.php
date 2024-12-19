@@ -87,7 +87,7 @@ class CurrencyController extends AbstractController
 
     #[Route('/api/currency_latest', name: 'app_currency_latest')]
     public function latest(
-        #[MapQueryParameter] string $base_currency = '',
+        #[MapQueryParameter] string $base_currency = 'USD',
         #[MapQueryParameter] string $currencies = '',
     ): JsonResponse
     {
@@ -97,17 +97,94 @@ class CurrencyController extends AbstractController
         ]));
     }
 
+    /**
+     * @throws \DateMalformedStringException
+     * @throws GuzzleException
+     */
     #[Route('/api/currency_historical', name: 'app_currency_historical')]
     public function historical(
         #[MapQueryParameter] string $date = '',
-        #[MapQueryParameter] string $base_currency = '',
+        #[MapQueryParameter] string $base_currency = 'USD',
         #[MapQueryParameter] string $currencies = '',
     ): JsonResponse
     {
-        return new JsonResponse($this->fetchData('/v1/historical', [
+        if (empty($date)) {
+            $date = (new DateTime())->modify('-1 day')->format('Y-m-d');
+        }
+
+        $dateObject = new DateTime($date);
+        $dateToday = new DateTime();
+
+        // if the date is in the future, we return an error
+        if ($dateObject > $dateToday) {
+            return new JsonResponse([
+                'error' => 'Date cannot be in the future'
+            ], 400);
+        }
+
+        if ($dateObject->format('Y-m-d') === $dateToday->format('Y-m-d')) {
+            return new JsonResponse([
+                'error' => 'Date cannot be today'
+            ], 400);
+        }
+
+        if (empty($this->currencyRepository->findAll())) {
+            return new JsonResponse([
+                'error' => 'No currencies found in the database'
+            ], 400);
+        }
+
+        // for each currency in $currencies we check if it's a valid currency by code
+        foreach (explode(',', $currencies) as $currency) {
+            if (empty($currency)) {
+                continue;
+            }
+            if (!$this->currencyRepository->findOneBy(['code' => $currency])) {
+                return new JsonResponse([
+                    'error' => "Currency not found in the database: $currency"
+                ], 400);
+            }
+        }
+
+        // if $currencies is empty, we check against all the currencies in the database
+        if (empty($currencies)) {
+            $currencies = implode(',', array_map(function ($currency) {
+                return $currency->getCode();
+            }, $this->currencyRepository->findAll()));
+        }
+
+        $historicalExchangeRates = $this->historicalExchangeRateRepository->findBy([
+            'date' => $dateObject,
+            'base_currency' => $this->currencyRepository->findOneBy(['code' => $base_currency]),
+        ]);
+
+        if ($historicalExchangeRates) {
+            $data = [];
+            foreach ($historicalExchangeRates as $historicalExchangeRate) {
+                $data[$historicalExchangeRate->getDate()->format('Y-m-d')][$historicalExchangeRate->getCurrency()->getCode()] = $historicalExchangeRate->getValue();
+            }
+
+            return new JsonResponse($this->serializer->normalize(['data' => $data], 'json'));
+        }
+
+        $response = $this->fetchData('/v1/historical', [
             'date' => $date,
             'base_currency' => $base_currency,
             'currencies' => $currencies
-        ]));
+        ]);
+
+        // we need to save the data in the database for each currency
+        foreach ($response['data'][$date] as $currency => $value) {
+            $historicalExchangeRate = (new HistoricalExchangeRate())
+                ->setDate($dateObject)
+                ->setBaseCurrency($this->currencyRepository->findOneBy(['code' => $base_currency]))
+                ->setCurrency($this->currencyRepository->findOneBy(['code' => $currency]))
+                ->setValue($value);
+            $this->entityManager->persist($historicalExchangeRate);
+        }
+
+        $this->entityManager->flush();
+
+        return new JsonResponse($this->serializer->normalize($response, 'json'));
     }
 }
