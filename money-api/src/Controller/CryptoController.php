@@ -93,7 +93,7 @@ class CryptoController extends AbstractController
     public function historical(
         #[MapQueryParameter] string $id,
         #[MapQueryParameter] string $date = '',
-        #[MapQueryParameter] string $base_currency = 'USD'
+        #[MapQueryParameter] string $base_currency = 'USD,EUR,JPY'
     ): JsonResponse
     {
         if (empty($id)) {
@@ -104,6 +104,7 @@ class CryptoController extends AbstractController
 
         $dateObject = new DateTime($date ?: 'today');
         $base_currency = strtolower($base_currency);
+        $base_currency = explode(',', $base_currency);
 
         // first check if the coin is in the database
         $coin = $this->coinRepository->findOneBy(['id' => $id]);
@@ -113,22 +114,30 @@ class CryptoController extends AbstractController
             ], 400);
         }
 
-        // if the coin is in the database, check if the historical data is in the database
-        $historicalCoinData = $this->historicalCoinDataRepository->findOneBy([
-            'base_currency' => $base_currency,
-            'currency' => $coin,
-            'date' => $dateObject
-        ]);
+        $historicalCoinDatas = [];
+        foreach ($base_currency as $bc) {
+            $historicalCoinData = $this->historicalCoinDataRepository->findOneBy([
+                'base_currency' => $bc,
+                'currency' => $coin,
+                'date' => $dateObject
+            ]);
 
-        if ($historicalCoinData) {
-            $historicalCoinData = [
-                'base_currency' => $historicalCoinData->getBaseCurrency(),
-                'currency' => $historicalCoinData->getCurrency()->getId(),
-                'value' => $historicalCoinData->getValue(),
-                'date' => $historicalCoinData->getDate()->format('Y-m-d')
-            ];
+            if ($historicalCoinData) {
+                $historicalCoinDatas[] = [
+                    'base_currency' => $historicalCoinData->getBaseCurrency(),
+                    'currency' => $historicalCoinData->getCurrency()->getId(),
+                    'value' => $historicalCoinData->getValue(),
+                    'date' => $historicalCoinData->getDate()->format('Y-m-d')
+                ];
+            } else {
+                return new JsonResponse([
+                    'error' => "Historical data not found for base currency $bc"
+                ], 404);
+            }
+        }
 
-            return new JsonResponse($this->serializer->normalize($historicalCoinData, 'json'));
+        if ($historicalCoinDatas) {
+            return new JsonResponse($this->serializer->normalize($historicalCoinDatas, 'json'));
         }
 
         // if the historical data is not in the database, fetch it from the API
