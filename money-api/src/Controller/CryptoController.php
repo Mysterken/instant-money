@@ -2,18 +2,38 @@
 
 namespace App\Controller;
 
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 class CryptoController extends AbstractController
 {
-    #[Route('/crypto', name: 'app_crypto')]
-    public function index(): JsonResponse
+    private const API_URL = 'https://api.coingecko.com/api';
+    private Client $client;
+
+    public function __construct()
     {
-        return $this->json([
-            'message' => 'Welcome to your new controller!',
-            'path' => 'src/Controller/CryptoController.php',
+        $this->client = new Client();
+    }
+
+    #[Route('/api/crypto_ping', name: 'app_crypto_ping')]
+    public function ping(): JsonResponse
+    {
+        return new JsonResponse($this->fetchData('/v3/ping'));
+    }
+
+    /**
+     * @throws GuzzleException
+     */
+    private function fetchData(string $endpoint, array $queryParameters = []): array
+    {
+        $queryParameters['apikey'] = $_ENV['CRYPTO_APIKEY'];
+        $response = $this->client->request('GET', self::API_URL . $endpoint, [
+            'query' => $queryParameters
         ]);
+
+        return json_decode($response->getBody()->getContents(), true);
     }
 }
