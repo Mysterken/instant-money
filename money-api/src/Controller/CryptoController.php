@@ -3,7 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\Coin;
+use App\Entity\HistoricalCoinData;
 use App\Repository\CoinRepository;
+use App\Repository\HistoricalCoinDataRepository;
 use DateMalformedStringException;
 use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,9 +23,10 @@ class CryptoController extends AbstractController
     private Client $client;
 
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly CoinRepository         $coinRepository,
-        private readonly SerializerInterface    $serializer
+        private readonly EntityManagerInterface       $entityManager,
+        private readonly HistoricalCoinDataRepository $historicalCoinDataRepository,
+        private readonly CoinRepository               $coinRepository,
+        private readonly SerializerInterface          $serializer
     )
     {
         $this->client = new Client();
@@ -90,6 +93,7 @@ class CryptoController extends AbstractController
     public function historical(
         #[MapQueryParameter] string $id,
         #[MapQueryParameter] string $date = '',
+        #[MapQueryParameter] string $base_currency = 'USD'
     ): JsonResponse
     {
         if (empty($id)) {
@@ -99,9 +103,61 @@ class CryptoController extends AbstractController
         }
 
         $dateObject = new DateTime($date ?: 'today');
+        $base_currency = strtolower($base_currency);
 
-        return new JsonResponse($this->fetchData("/v3/coins/$id/history", [
-            'date' => $dateObject->format('d-m-Y')
-        ]));
+        // first check if the coin is in the database
+        $coin = $this->coinRepository->findOneBy(['id' => $id]);
+        if (!$coin) {
+            return new JsonResponse([
+                'error' => "Coin with id $id not found"
+            ], 400);
+        }
+
+        // if the coin is in the database, check if the historical data is in the database
+        $historicalCoinData = $this->historicalCoinDataRepository->findOneBy([
+            'base_currency' => $base_currency,
+            'currency' => $coin,
+            'date' => $dateObject
+        ]);
+
+        if ($historicalCoinData) {
+            $historicalCoinData = [
+                'base_currency' => $historicalCoinData->getBaseCurrency(),
+                'currency' => $historicalCoinData->getCurrency()->getId(),
+                'value' => $historicalCoinData->getValue(),
+                'date' => $historicalCoinData->getDate()->format('Y-m-d')
+            ];
+
+            return new JsonResponse($this->serializer->normalize($historicalCoinData, 'json'));
+        }
+
+        // if the historical data is not in the database, fetch it from the API
+        $response = $this->fetchData("/v3/coins/$id/history", [
+            'date' => $dateObject->format('d-m-Y'),
+            'localization' => 'false'
+        ]);
+
+        $historicalCoinDatas = [];
+        foreach ($response['market_data']['current_price'] as $base_currency => $value) {
+            $historicalCoinData = (new HistoricalCoinData())
+                ->setBaseCurrency($base_currency)
+                ->setCurrency($coin)
+                ->setValue($value)
+                ->setDate($dateObject);
+
+            $this->entityManager->persist($historicalCoinData);
+            $historicalCoinDatas[] = $historicalCoinData;
+        }
+
+        $this->entityManager->flush();
+
+        $historicalCoinDatas = array_map(fn($historicalCoinData) => [
+            'base_currency' => $historicalCoinData->getBaseCurrency(),
+            'currency' => $historicalCoinData->getCurrency()->getId(),
+            'value' => $historicalCoinData->getValue(),
+            'date' => $historicalCoinData->getDate()->format('Y-m-d')
+        ], $historicalCoinDatas);
+
+        return new JsonResponse($this->serializer->normalize($historicalCoinDatas, 'json'));
     }
 }
