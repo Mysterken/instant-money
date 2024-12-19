@@ -21,9 +21,8 @@ class HistoricalCoinData
     #[ORM\JoinColumn(nullable: false)]
     private ?Coin $base_currency = null;
 
-    #[ORM\ManyToOne(inversedBy: 'historicalCoinData')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?Coin $currency = null;
+    #[ORM\Column(length: 255)]
+    private ?string $currency = null;
 
     #[ORM\Column]
     private ?float $value = null;
@@ -57,12 +56,12 @@ class HistoricalCoinData
         return $this;
     }
 
-    public function getCurrency(): ?Coin
+    public function getCurrency(): ?string
     {
         return $this->currency;
     }
 
-    public function setCurrency(?Coin $currency): static
+    public function setCurrency(?string $currency): static
     {
         $this->currency = $currency;
 
