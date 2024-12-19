@@ -25,6 +25,9 @@ class HistoricalCoinData
     #[ORM\JoinColumn(nullable: false)]
     private ?Coin $currency = null;
 
+    #[ORM\Column]
+    private ?float $value = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -62,6 +65,18 @@ class HistoricalCoinData
     public function setCurrency(?Coin $currency): static
     {
         $this->currency = $currency;
+
+        return $this;
+    }
+
+    public function getValue(): ?float
+    {
+        return $this->value;
+    }
+
+    public function setValue(float $value): static
+    {
+        $this->value = $value;
 
         return $this;
     }
