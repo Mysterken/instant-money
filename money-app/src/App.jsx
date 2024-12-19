@@ -1,62 +1,26 @@
-/*import { useEffect, useState } from "react";
-import axios from "axios";
-
-function App() {
-  const [rates, setRates] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    // Appel API vers le backend Symfony
-    axios.get("http://localhost:8000/api/rates")
-      .then((response) => {
-        setRates(response.data.rates);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Erreur API :", err);
-        setError("Erreur lors du chargement des taux de change.");
-        setLoading(false);
-      });
-  }, []);
-
-  return (
-    <div>
-      <h1>Taux de Change</h1>
-      {loading ? (
-        <p>Chargement...</p>
-      ) : error ? (
-        <p>{error}</p>
-      ) : (
-        <ul>
-          {Object.entries(rates).map(([currency, value]) => (
-            <li key={currency}>
-              {currency} : {value}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-export default App;*/
-
-//API -> JSON
-
 import { useEffect, useState } from "react";
 import axios from "axios";
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 function App() {
-  const [rates, setRates] = useState({});
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Charger le fichier JSON local
+
     axios.get("/rates.json")
       .then((response) => {
-        setRates(response.data.rates);
+        setData(response.data);
         setLoading(false);
       })
       .catch((err) => {
@@ -67,24 +31,29 @@ function App() {
   }, []);
 
   return (
-    <div>
-      <h1>Taux de Changes</h1>
+    <div className="container mt-5">
+      <h1 className="text-center mb-4">Taux de Change par Rapport au Temps</h1>
       {loading ? (
-        <p>Chargement...</p>
+        <p className="text-center">Chargement...</p>
       ) : error ? (
-        <p>{error}</p>
+        <p className="text-danger text-center">{error}</p>
       ) : (
-        <ul>
-          {Object.entries(rates).map(([currency, value]) => (
-            <li key={currency}>
-              {currency} : {value}
-            </li>
-          ))}
-        </ul>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+
+            <Line type="monotone" dataKey="USD" stroke="#8884d8" name="USD (Dollar)" />
+            <Line type="monotone" dataKey="GBP" stroke="#82ca9d" name="GBP (Livre)" />
+            <Line type="monotone" dataKey="JPY" stroke="#ffc658" name="JPY (Yen)" />
+          </LineChart>
+        </ResponsiveContainer>
       )}
     </div>
   );
 }
 
 export default App;
-
