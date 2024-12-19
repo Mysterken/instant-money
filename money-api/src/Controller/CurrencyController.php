@@ -60,10 +60,23 @@ class CurrencyController extends AbstractController
 
         if (!empty($DBcurrencies)) {
             // add the code of the currency as the key of the array and 'data' as the key above everything
-            $DBcurrencies = array_reduce($DBcurrencies, function ($acc, $currency) {
-                $acc[$currency->getCode()] = $currency;
-                return $acc;
-            }, []);
+            $DBcurrencies = array_reduce(
+                $DBcurrencies,
+                function ($acc, $currency) {
+                    $acc[$currency->getCode()] = [
+                        'symbol' => $currency->getSymbol(),
+                        'name' => $currency->getName(),
+                        'symbol_native' => $currency->getSymbolNative(),
+                        'decimal_digits' => $currency->getDecimalDigits(),
+                        'rounding' => $currency->getRounding(),
+                        'code' => $currency->getCode(),
+                        'name_plural' => $currency->getNamePlural()
+                    ];
+                    return $acc;
+                },
+                []
+            );
+
             return new JsonResponse($this->serializer->normalize(['data' => $DBcurrencies], 'json'));
         }
 
