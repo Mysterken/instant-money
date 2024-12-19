@@ -57,14 +57,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// Options pour le dropdown des devises
-const currenciesOptions = [
-  { value: "USD", label: "USD (Dollar)" },
-  { value: "EUR", label: "EUR (Euro)" },
-  { value: "GBP", label: "GBP (Livre Sterling)" },
-  { value: "JPY", label: "JPY (Yen)"},
-];
-
 // Options pour le filtre temporel
 const timeOptions = [
   { value: "year", label: "Par année" },
@@ -75,40 +67,66 @@ const timeOptions = [
 const App = () => {
   const [data, setData] = useState([]); // Les données brutes récupérées via Axios
   const [filteredData, setFilteredData] = useState([]); // Les données filtrées selon les options
+  const [currenciesOptions, setCurrenciesOptions] = useState([]); // Options dynamiques pour les devises
   const [selectedCurrencies, setSelectedCurrencies] = useState([]);
   const [timeFilter, setTimeFilter] = useState("month");
 
-  // Fonction pour récupérer les données avec Axios
+  // Fonction pour récupérer la liste des devises (dropdown dynamique)
+  useEffect(() => {
+    const fetchCurrencies = async () => {
+      try {
+        const response = await axios.get("/api/currency_list");
+        const currencies = response.data;
+        console.log(currencies)
+        if (currencies && Array.isArray(currencies)) {
+          setCurrenciesOptions(
+            currencies.map((currency) => ({
+              value: currency.code,
+              label: `${currency.code} (${currency.name})`,
+            }))
+          );
+        } else {
+          console.error("Données invalides pour les devises :", currencies);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des devises :", error);
+      }
+    };
+  
+    fetchCurrencies();
+  }, []);
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("/rates.json"); // URL du fichier JSON
-        setData(response.data); // Stocker les données brutes
-        setFilteredData(response.data); // Initialiser les données filtrées
+        const endpoint = timeFilter === "year" ? "/api/currency_historical" : "/api/currency_latest";
+        const response = await axios.get(endpoint);
+        const ratesData = response.data;
+        if (ratesData && Array.isArray(ratesData)) {
+          setData(ratesData);
+          setFilteredData(ratesData);
+        } else {
+          console.error("Données invalides pour les cours :", ratesData);
+        }
       } catch (error) {
         console.error("Erreur lors de la récupération des données :", error);
       }
     };
-
+  
     fetchData();
-  }, []);
+  }, [timeFilter]);
+  
 
-  // Fonction pour filtrer les données selon le filtre temporel
-  useEffect(() => {
-    const filterDataByTime = () => {
-      if (timeFilter === "year") {
-        // Exemple simplifié : filtre par année (prend une donnée sur 12 pour simuler un regroupement annuel)
-        return data.filter((_, index) => index % 12 === 0);
-      } else if (timeFilter === "week") {
-        // Exemple simplifié : filtre par semaine (prend une donnée sur 4)
-        return data.filter((_, index) => index % 4 === 0);
+  // Filtrage des données selon les devises sélectionnées
+  const filteredGraphData = filteredData.map((entry) => {
+    const filteredEntry = { date: entry.date }; // Inclure la date dans chaque entrée
+    selectedCurrencies.forEach((currency) => {
+      if (entry[currency]) {
+        filteredEntry[currency] = entry[currency];
       }
-      // Par défaut : données par mois
-      return data;
-    };
-
-    setFilteredData(filterDataByTime());
-  }, [timeFilter, data]);
+    });
+    return filteredEntry;
+  });
 
   return (
     <div style={{ padding: "20px" }}>
@@ -125,6 +143,7 @@ const App = () => {
           }
         />
       </div>
+
       {/* Dropdown pour le filtre temporel */}
       <div style={{ marginBottom: "20px" }}>
         <label>Filtrer l'évolution par :</label>
@@ -138,7 +157,7 @@ const App = () => {
       {/* Graphique */}
       <ResponsiveContainer width="100%" height={400}>
         <LineChart
-          data={filteredData}
+          data={filteredGraphData}
           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
@@ -157,7 +176,9 @@ const App = () => {
                   ? "#8884d8"
                   : currency === "EUR"
                   ? "#82ca9d"
-                  : "#ffc658"
+                  : currency === "GBP"
+                  ? "#ffc658"
+                  : "#d84a44" // Couleur par défaut pour les autres devises
               }
               activeDot={{ r: 8 }}
             />
