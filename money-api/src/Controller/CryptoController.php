@@ -2,10 +2,13 @@
 
 namespace App\Controller;
 
+use DateMalformedStringException;
+use DateTime;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
 
 class CryptoController extends AbstractController
@@ -41,5 +44,28 @@ class CryptoController extends AbstractController
     public function list(): JsonResponse
     {
         return new JsonResponse($this->fetchData('/v3/coins/list'));
+    }
+
+    /**
+     * @throws DateMalformedStringException
+     * @throws GuzzleException
+     */
+    #[Route('/api/crypto_historical', name: 'app_crypto_historical')]
+    public function historical(
+        #[MapQueryParameter] string $id,
+        #[MapQueryParameter] string $date = '',
+    ): JsonResponse
+    {
+        if (empty($id)) {
+            return new JsonResponse([
+                'error' => 'No id provided'
+            ], 400);
+        }
+
+        $dateObject = new DateTime($date ?: 'today');
+
+        return new JsonResponse($this->fetchData("/v3/coins/$id/history", [
+            'date' => $dateObject->format('d-m-Y')
+        ]));
     }
 }
