@@ -206,7 +206,7 @@ const App = () => {
 };
 
 export default App;*/
-
+import './App.css';
 import React, { useState, useEffect } from "react";
 import { fetchCurrencies, fetchHistoricalData } from "./services/currencyService";
 import { assignColorsToCurrencies } from "./utils/colorUtils";
@@ -246,8 +246,8 @@ const App = () => {
   }, [selectedCurrencies]);
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Évolution des Cours de Change</h1>
+    <div className="graph-container">
+      <h1>Évolution des cours de change</h1>
       <CurrencySelector
         options={currenciesOptions}
         onSelect={setSelectedCurrencies}
