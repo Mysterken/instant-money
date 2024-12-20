@@ -6,6 +6,9 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Attribute\Route;
 
 class TestController extends AbstractController
@@ -38,5 +41,18 @@ class TestController extends AbstractController
         }
 
         return $this->json($data);
+    }
+
+    #[Route('/api/test/mercure', name: 'app_test_mercure')]
+    public function mercure(HubInterface $hub): Response
+    {
+        $update = new Update(
+            'mercure',
+            json_encode(['status' => 'mercure is amazing!'])
+        );
+
+        $hub->publish($update);
+
+        return new Response('published!');
     }
 }
