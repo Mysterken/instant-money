@@ -14,6 +14,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -104,6 +106,33 @@ class CurrencyController extends AbstractController
             'base_currency' => $base_currency,
             'currencies' => $currencies
         ]));
+    }
+
+    /**
+     * @throws DateMalformedStringException
+     */
+    #[Route('/api/currency_historical_update', name: 'app_currency_historical_update')]
+    public function historical_update(
+        HubInterface                $hub,
+        #[MapQueryParameter] string $date = '',
+        #[MapQueryParameter] string $base_currency = 'USD',
+        #[MapQueryParameter] string $currencies = '',
+    ): JsonResponse
+    {
+        $topics = "ch-d_$date-bc_$base_currency-c_$currencies";
+
+        $update = new Update(
+            "$topics",
+            $this->historical($date, $base_currency, $currencies)->getContent()
+        );
+
+        $hub->publish($update);
+
+        return new JsonResponse([
+            'status' => 'update published!',
+            'parameters' => compact('date', 'base_currency', 'currencies'),
+            'topics' => $topics
+        ]);
     }
 
     /**
