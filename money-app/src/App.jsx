@@ -14,25 +14,16 @@ const App = () => {
   const [currencyColors, setCurrencyColors] = useState({});
 
   useEffect(() => {
-    // Récupération des devises
-    const loadCurrencies = async () => {
+    const loadCurrenciesAndData = async () => {
       const options = await fetchCurrencies();
       setCurrenciesOptions(options);
-    };
-    loadCurrencies();
-  }, []);
-
-  useEffect(() => {
-    // Récupération des données selon le filtre temporel
-    const loadHistoricalData = async () => {
       const formattedData = await fetchHistoricalData(timeFilter);
       setData(formattedData);
     };
-    loadHistoricalData();
+    loadCurrenciesAndData();
   }, [timeFilter]);
 
   useEffect(() => {
-    // Mise à jour des couleurs des devises sélectionnées
     const newCurrencyColors = assignColorsToCurrencies(selectedCurrencies);
     setCurrencyColors(newCurrencyColors);
   }, [selectedCurrencies]);
