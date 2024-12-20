@@ -54,28 +54,23 @@ class CurrencyController extends AbstractController
     #[Route('/api/currency_list', name: 'app_currency_list')]
     public function list(#[MapQueryParameter] string $currencies = ''): JsonResponse
     {
-        $DBcurrencies = empty($currencies)
-            ? $this->currencyRepository->findAll()
-            : $this->currencyRepository->findBy(['code' => explode(',', $currencies)]);
+        $DBcurrencies = $currencies
+            ? $this->currencyRepository->findBy(['code' => explode(',', $currencies)])
+            : $this->currencyRepository->findAll();
 
-        if (!empty($DBcurrencies)) {
-            // add the code of the currency as the key of the array and 'data' as the key above everything
-            $DBcurrencies = array_reduce(
-                $DBcurrencies,
-                function ($acc, $currency) {
-                    $acc[$currency->getCode()] = [
-                        'symbol' => $currency->getSymbol(),
-                        'name' => $currency->getName(),
-                        'symbol_native' => $currency->getSymbolNative(),
-                        'decimal_digits' => $currency->getDecimalDigits(),
-                        'rounding' => $currency->getRounding(),
-                        'code' => $currency->getCode(),
-                        'name_plural' => $currency->getNamePlural()
-                    ];
-                    return $acc;
-                },
-                []
-            );
+        if ($DBcurrencies) {
+            $DBcurrencies = array_reduce($DBcurrencies, function ($acc, $currency) {
+                $acc[$currency->getCode()] = [
+                    'symbol' => $currency->getSymbol(),
+                    'name' => $currency->getName(),
+                    'symbol_native' => $currency->getSymbolNative(),
+                    'decimal_digits' => $currency->getDecimalDigits(),
+                    'rounding' => $currency->getRounding(),
+                    'code' => $currency->getCode(),
+                    'name_plural' => $currency->getNamePlural()
+                ];
+                return $acc;
+            }, []);
 
             return new JsonResponse($this->serializer->normalize(['data' => $DBcurrencies], 'json'));
         }
