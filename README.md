@@ -1,51 +1,73 @@
-# Symfony Docker
+<br />
+<div align="center">
+  <a href="https://github.com/Mysterken/instant-money">
+    <img src="docs/screenshot.jpg" alt="Logo"height="256">
+  </a>
 
-A [Docker](https://www.docker.com/)-based installer and runtime for the [Symfony](https://symfony.com) web framework,
-with [FrankenPHP](https://frankenphp.dev) and [Caddy](https://caddyserver.com/) inside!
+<h3 align="center">instant-money</h3>
 
-![CI](https://github.com/dunglas/symfony-docker/workflows/CI/badge.svg)
+  <p align="center">
+    A web app that allows you to instantly get the current exchange rate for multiple currencies.
+  </p>
+
+[![CodeFactor](https://www.codefactor.io/repository/github/mysterken/instant-money/badge)](https://www.codefactor.io/repository/github/mysterken/instant-money)
+![Language](https://img.shields.io/github/languages/top/Mysterken/instant-money)
+</div>
+
+## About The Project
+
+This is a course project made with my group members, made in a few days.  
+It allows you to get the current exchange rate for multiple currencies and cryptocurrencies and display them in a graph.
+We use the [FreecurrencyAPI](https://freecurrencyapi.com/) to get the exchange rates
+and [CoinGecko](https://www.coingecko.com/) to get the cryptocurrency exchange rates.
+
+### Built With
+
+- [vite](https://vite.dev/) for the frontend bundling
+- [React](https://react.dev/) for the frontend
+- [Symfony](https://symfony.com/) for the backend
+- [Docker](https://www.docker.com/) for the containerization
+- [sqlite](https://www.sqlite.org/index.html) for the database
 
 ## Getting Started
 
-1. If not already done, [install Docker Compose](https://docs.docker.com/compose/install/) (v2.10+)
-2. Run `docker compose build --no-cache` to build fresh images
-3. Run `docker compose up --pull always -d --wait` to set up and start a fresh Symfony project
-4. Open `https://localhost` in your favorite web browser and [accept the auto-generated TLS certificate](https://stackoverflow.com/a/15076602/1352334)
-5. Run `docker compose down --remove-orphans` to stop the Docker containers.
+To get a local copy up and running follow these simple steps.
 
-## Features
+### Prerequisites
 
-* Production, development and CI ready
-* Just 1 service by default
-* Blazing-fast performance thanks to [the worker mode of FrankenPHP](https://github.com/dunglas/frankenphp/blob/main/docs/worker.md) (automatically enabled in prod mode)
-* [Installation of extra Docker Compose services](docs/extra-services.md) with Symfony Flex
-* Automatic HTTPS (in dev and prod)
-* HTTP/3 and [Early Hints](https://symfony.com/blog/new-in-symfony-6-3-early-hints) support
-* Real-time messaging thanks to a built-in [Mercure hub](https://symfony.com/doc/current/mercure.html)
-* [Vulcain](https://vulcain.rocks) support
-* Native [XDebug](docs/xdebug.md) integration
-* Super-readable configuration
+- [Docker Compose](https://docs.docker.com/compose/install/)
+- [Make](https://www.gnu.org/software/make/) (Optional)
 
-**Enjoy!**
+### Installation
 
-## Docs
+1. Clone the repo
+   ```sh
+   git clone
+   ```
 
-1. [Options available](docs/options.md)
-2. [Using Symfony Docker with an existing project](docs/existing-project.md)
-3. [Support for extra services](docs/extra-services.md)
-4. [Deploying in production](docs/production.md)
-5. [Debugging with Xdebug](docs/xdebug.md)
-6. [TLS Certificates](docs/tls.md)
-7. [Using MySQL instead of PostgreSQL](docs/mysql.md)
-8. [Using Alpine Linux instead of Debian](docs/alpine.md)
-9. [Using a Makefile](docs/makefile.md)
-10. [Updating the template](docs/updating.md)
-11. [Troubleshooting](docs/troubleshooting.md)
+2. Build and run the containers
+   ```sh
+   docker compose build --no-cache
+   docker compose up --pull always -d --wait
+   ```
+    or with make
+    ```sh
+    make build
+    make up
+    ```
 
-## License
+3. Open `https://localhost` in your browser  
 
-Symfony Docker is available under the MIT License.
 
-## Credits
+4. To stop the containers
+   ```sh
+   docker compose down --remove-orphans
+   ```
+   or with make
+   ```sh
+    make down
+   ```
 
-Created by [Kévin Dunglas](https://dunglas.dev), co-maintained by [Maxime Helias](https://twitter.com/maxhelias) and sponsored by [Les-Tilleuls.coop](https://les-tilleuls.coop).
+### Notes
+
+While there is a working backend for the cryptocurrencies, the frontend side of it is not yet implemented.
