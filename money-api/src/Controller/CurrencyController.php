@@ -203,4 +203,57 @@ class CurrencyController extends AbstractController
 
         return new JsonResponse($this->serializer->normalize($response, 'json'));
     }
+
+    /**
+     * @throws DateMalformedStringException
+     */
+    #[Route('/api/currency_historical_range_update', name: 'app_currency_historical_range')]
+    public function historical_range(
+        HubInterface $hub,
+        #[MapQueryParameter] string $range,
+    ): JsonResponse
+    {
+        $yesterday = new DateTime('yesterday');
+        $response = [];
+
+        switch ($range) {
+            case 'year':
+                $interval = new \DateInterval('P1M');
+                $iterations = 12;
+                break;
+            case 'month':
+                $interval = new \DateInterval('P1W');
+                $iterations = 4;
+                break;
+            case 'week':
+                $interval = new \DateInterval('P1D');
+                $iterations = 7;
+                break;
+            default:
+                return new JsonResponse(['error' => 'Invalid range'], 400);
+        }
+
+        for ($i = 0; $i < $iterations; $i++) {
+            $date = $yesterday->format('Y-m-d');
+            $historical = json_decode($this->historical($date)->getContent(), true);
+            $historical['data'][$date]['date'] = $date;
+            $response[] = $historical['data'][$date];
+            $yesterday->sub($interval);
+        }
+
+        $response = array_reverse($response);
+
+        $update = new Update(
+            "ch-range_$range",
+            json_encode($response, true)
+        );
+
+        $hub->publish($update);
+
+        return new JsonResponse([
+            'status' => 'update published!',
+            'parameters' => compact('range'),
+            'data' => $update->getData(),
+        ]);
+    }
 }
