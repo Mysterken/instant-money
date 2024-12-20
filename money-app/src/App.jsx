@@ -70,6 +70,15 @@ const App = () => {
   const [selectedCurrencies, setSelectedCurrencies] = useState([]); // Devises sélectionnées
   const [timeFilter, setTimeFilter] = useState("month"); // Filtre temporel
 
+  // Fonction pour formater une date au format YYYY-MM-DD
+  const getFormattedDate = (date) => {
+    const d = new Date(date);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const year = d.getFullYear();
+    return `${year}-${month < 10 ? `0${month}` : month}-${day < 10 ? `0${day}` : day}`;
+  };
+
   // Récupération des devises au chargement
   useEffect(() => {
     const fetchCurrencies = async () => {
@@ -98,47 +107,57 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const endpoint ="/api/currency_historical"
-
-        const response = await axios.get(endpoint+"?date=2024-12-18");
-        const response2 = await axios.get(endpoint+"?date=2023-12-18");
-        const ratesData = response.data.data["2024-12-18"];
-        const ratesData2 = response2.data.data["2023-12-18"];
-
-        if (ratesData) {
-          if (timeFilter === "year") {
-            // Formatage des données pour les taux historiques
-            const formattedData = Object.entries(ratesData).map(
-              ([date, rates]) => ({
-                date,
-                ...rates, // Inclure toutes les devises avec leurs valeurs
-              })
-            );
-            console.log(formattedData)
-            setData(formattedData);
-          } else {
-            // Formatage pour les taux récents
-            const today = new Date().toISOString().split("T")[0];
-            console.log(ratesData)
-            console.log(ratesData2)
-            setData([
-              {
-                date: "2023-12-19",
-                ...ratesData,
-              },
-              {
-                date: "2024-12-18",
-                ...ratesData2,
-              },
-            ]);
-          }
+        const today = new Date();
+        const yesterday = new Date(today); // Clone pour obtenir la date d'hier
+        yesterday.setDate(today.getDate() - 1); // Date d'hier
+    
+        let startDate = new Date(yesterday); // Initialisation de la date de début
+    
+        // Calculer la date de début en fonction du filtre temporel
+        if (timeFilter === "year") {
+          startDate.setFullYear(yesterday.getFullYear() - 1); // 1 an avant hier
+        } else if (timeFilter === "month") {
+          startDate.setMonth(yesterday.getMonth() - 1); // 1 mois avant hier
+        } else if (timeFilter === "week") {
+          startDate.setDate(yesterday.getDate() - 7); // 7 jours avant hier
+        }
+    
+        const formattedYesterday = getFormattedDate(yesterday); // Date d'hier
+        const formattedStartDate = getFormattedDate(startDate); // Date de début selon le filtre
+    
+        const endpoint = "/api/currency_historical";
+    
+        // Logs pour vérifier les dates
+        console.log(`Fetching data for start date: ${formattedStartDate}`);
+        console.log(`Fetching data for yesterday: ${formattedYesterday}`);
+    
+        // Récupérer les données pour les deux dates
+        const responseStart = await axios.get(`${endpoint}?date=${formattedStartDate}`);
+        const responseYesterday = await axios.get(`${endpoint}?date=${formattedYesterday}`);
+    
+        // Extraire les données pour chaque date
+        const ratesDataStart = responseStart.data.data[formattedStartDate]; // Taux à la date de début
+        const ratesDataYesterday = responseYesterday.data.data[formattedYesterday]; // Taux pour hier
+    
+        if (ratesDataStart && ratesDataYesterday) {
+          // Préparer les données pour le graphique
+          const formattedData = [
+            { date: formattedStartDate, ...ratesDataStart },
+            { date: formattedYesterday, ...ratesDataYesterday },
+          ];
+    
+          setData(formattedData); // Mettre à jour les données pour le graphique
         } else {
-          console.error("Données invalides pour les cours :", ratesData);
+          console.error(
+            "Données invalides reçues pour les taux :",
+            ratesDataStart,
+            ratesDataYesterday
+          );
         }
       } catch (error) {
         console.error("Erreur lors de la récupération des données :", error);
       }
-    };
+    };     
 
     fetchData();
   }, [timeFilter]);
