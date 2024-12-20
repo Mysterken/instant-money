@@ -131,7 +131,8 @@ class CurrencyController extends AbstractController
         return new JsonResponse([
             'status' => 'update published!',
             'parameters' => compact('date', 'base_currency', 'currencies'),
-            'topics' => $topics
+            'topics' => $topics,
+            'data' => $update->getData(),
         ]);
     }
 
