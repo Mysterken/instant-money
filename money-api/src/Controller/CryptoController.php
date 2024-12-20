@@ -3,7 +3,9 @@
 namespace App\Controller;
 
 use App\Entity\Coin;
+use App\Entity\CoinGeckoSupportedCurrency;
 use App\Entity\HistoricalCoinData;
+use App\Repository\CoinGeckoSupportedCurrencyRepository;
 use App\Repository\CoinRepository;
 use App\Repository\HistoricalCoinDataRepository;
 use DateMalformedStringException;
@@ -23,10 +25,11 @@ class CryptoController extends AbstractController
     private Client $client;
 
     public function __construct(
-        private readonly EntityManagerInterface       $entityManager,
-        private readonly HistoricalCoinDataRepository $historicalCoinDataRepository,
-        private readonly CoinRepository               $coinRepository,
-        private readonly SerializerInterface          $serializer
+        private readonly EntityManagerInterface               $entityManager,
+        private readonly CoinGeckoSupportedCurrencyRepository $coinGeckoSupportedCurrencyRepository,
+        private readonly HistoricalCoinDataRepository         $historicalCoinDataRepository,
+        private readonly CoinRepository                       $coinRepository,
+        private readonly SerializerInterface                  $serializer
     )
     {
         $this->client = new Client();
@@ -167,6 +170,22 @@ class CryptoController extends AbstractController
     #[Route('/api/crypto_supported_currencies', name: 'app_crypto_supported_currencies')]
     public function supported(): JsonResponse
     {
-        return new JsonResponse($this->fetchData('/v3/simple/supported_vs_currencies'));
+        $DBcurrencies = $this->coinGeckoSupportedCurrencyRepository->findAll();
+        if ($DBcurrencies) {
+            $DBcurrencies = array_map(fn($currency) => $currency->getCode(), $DBcurrencies);
+            return new JsonResponse($this->serializer->normalize($DBcurrencies, 'json'));
+        }
+
+        $currencies = $this->fetchData('/v3/simple/supported_vs_currencies');
+
+        foreach ($currencies as $currency) {
+            $currencyEntity = (new CoinGeckoSupportedCurrency())
+                ->setCode($currency);
+
+            $this->entityManager->persist($currencyEntity);
+        }
+
+        $this->entityManager->flush();
+        return new JsonResponse($currencies);
     }
 }
