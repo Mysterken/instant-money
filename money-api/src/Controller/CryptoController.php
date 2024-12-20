@@ -163,4 +163,10 @@ class CryptoController extends AbstractController
 
         return new JsonResponse($this->serializer->normalize($historicalCoinDatas, 'json'));
     }
+
+    #[Route('/api/crypto_supported_currencies', name: 'app_crypto_supported_currencies')]
+    public function supported(): JsonResponse
+    {
+        return new JsonResponse($this->fetchData('/v3/simple/supported_vs_currencies'));
+    }
 }
