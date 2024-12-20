@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+/*import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Select from "react-select";
 import {
@@ -156,7 +156,7 @@ const App = () => {
     <div style={{ padding: "20px" }}>
       <h1>Évolution des Cours de Change</h1>
 
-      {/* Menu déroulant pour sélectionner les devises */}
+      {/* Menu déroulant pour sélectionner les devises *//*} /*
       <div style={{ marginBottom: "20px" }}>
         <label>Sélectionnez les devises à afficher :</label>
         <Select
@@ -168,7 +168,7 @@ const App = () => {
         />
       </div>
 
-      {/* Menu déroulant pour le filtre temporel */}
+      {/* Menu déroulant pour le filtre temporel *//*} /*
       <div style={{ marginBottom: "20px" }}>
         <label>Filtrer l'évolution par :</label>
         <Select
@@ -178,7 +178,7 @@ const App = () => {
         />
       </div>
 
-      {/* Graphique */}
+      {/* Graphique *//*} /*
       <ResponsiveContainer width="100%" height={400}>
         <LineChart
           data={filteredGraphData}
@@ -189,7 +189,7 @@ const App = () => {
           <YAxis />
           <Tooltip />
           <Legend />
-          {/* Tracer les lignes pour chaque devise sélectionnée */}
+          {/* Tracer les lignes pour chaque devise sélectionnée *//*}/*
           {selectedCurrencies.map((currency) => (
             <Line
               key={currency}
@@ -205,4 +205,65 @@ const App = () => {
   );
 };
 
+export default App;*/
+
+import React, { useState, useEffect } from "react";
+import { fetchCurrencies, fetchHistoricalData } from "./services/currencyService";
+import { assignColorsToCurrencies } from "./utils/colorUtils";
+import CurrencySelector from "./components/CurrencySelector";
+import TimeFilterSelector from "./components/TimeFilterSelector";
+import ExchangeRateChart from "./components/ExchangeRateChart";
+
+const App = () => {
+  const [data, setData] = useState([]);
+  const [currenciesOptions, setCurrenciesOptions] = useState([]);
+  const [selectedCurrencies, setSelectedCurrencies] = useState([]);
+  const [timeFilter, setTimeFilter] = useState("month");
+  const [currencyColors, setCurrencyColors] = useState({});
+
+  useEffect(() => {
+    // Récupération des devises
+    const loadCurrencies = async () => {
+      const options = await fetchCurrencies();
+      setCurrenciesOptions(options);
+    };
+    loadCurrencies();
+  }, []);
+
+  useEffect(() => {
+    // Récupération des données selon le filtre temporel
+    const loadHistoricalData = async () => {
+      const formattedData = await fetchHistoricalData(timeFilter);
+      setData(formattedData);
+    };
+    loadHistoricalData();
+  }, [timeFilter]);
+
+  useEffect(() => {
+    // Mise à jour des couleurs des devises sélectionnées
+    const newCurrencyColors = assignColorsToCurrencies(selectedCurrencies);
+    setCurrencyColors(newCurrencyColors);
+  }, [selectedCurrencies]);
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <h1>Évolution des Cours de Change</h1>
+      <CurrencySelector
+        options={currenciesOptions}
+        onSelect={setSelectedCurrencies}
+      />
+      <TimeFilterSelector
+        selectedFilter={timeFilter}
+        onChange={setTimeFilter}
+      />
+      <ExchangeRateChart
+        data={data}
+        selectedCurrencies={selectedCurrencies}
+        currencyColors={currencyColors}
+      />
+    </div>
+  );
+};
+
 export default App;
+
