@@ -12,8 +12,18 @@ const App = () => {
   const [selectedCurrencies, setSelectedCurrencies] = useState([]);
   const [timeFilter, setTimeFilter] = useState("month");
   const [currencyColors, setCurrencyColors] = useState({});
+  const [mercureTopic, setMercureTopic] = useState(null);
 
   useEffect(() => {
+    const eventSource = new EventSource(`https://localhost/.well-known/mercure?topic=${mercureTopic}`);
+    eventSource.onmessage = (event) => {
+      const updatedData = JSON.parse(event.data);
+      setData(updatedData);
+    }
+  }, [mercureTopic]);
+
+  useEffect(() => {
+    setMercureTopic(`ch-range_${timeFilter}`);
     const loadCurrenciesAndData = async () => {
       const options = await fetchCurrencies();
       setCurrenciesOptions(options);
