@@ -42,7 +42,7 @@ function App() {
 export default App;*/
 
 //API -> JSON
-
+import './App.css';
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Select from "react-select";
@@ -155,8 +155,8 @@ const App = () => {
   });
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Évolution des Cours de Change</h1>
+    <div className="graph-container">
+      <h1>Évolution des cours de change</h1>
 
       {/* Menu déroulant pour sélectionner les devises */}
       <div style={{ marginBottom: "20px" }}>
