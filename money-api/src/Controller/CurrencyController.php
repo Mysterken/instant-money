@@ -54,49 +54,9 @@ class CurrencyController extends AbstractController
     #[Route('/api/currency_list', name: 'app_currency_list')]
     public function list(#[MapQueryParameter] string $currencies = ''): JsonResponse
     {
-        $DBcurrencies = empty($currencies)
-            ? $this->currencyRepository->findAll()
-            : $this->currencyRepository->findBy(['code' => explode(',', $currencies)]);
+    
 
-        if (!empty($DBcurrencies)) {
-            // add the code of the currency as the key of the array and 'data' as the key above everything
-            $DBcurrencies = array_reduce(
-                $DBcurrencies,
-                function ($acc, $currency) {
-                    $acc[$currency->getCode()] = [
-                        'symbol' => $currency->getSymbol(),
-                        'name' => $currency->getName(),
-                        'symbol_native' => $currency->getSymbolNative(),
-                        'decimal_digits' => $currency->getDecimalDigits(),
-                        'rounding' => $currency->getRounding(),
-                        'code' => $currency->getCode(),
-                        'name_plural' => $currency->getNamePlural()
-                    ];
-                    return $acc;
-                },
-                []
-            );
-
-            return new JsonResponse($this->serializer->normalize(['data' => $DBcurrencies], 'json'));
-        }
-
-        $response = $this->fetchData('/v1/currencies', ['currencies' => $currencies]);
-        $currencies = array_map(function ($currencyData) {
-            $currency = (new Currency())
-                ->setCode($currencyData['code'])
-                ->setName($currencyData['name'])
-                ->setSymbol($currencyData['symbol'])
-                ->setSymbolNative($currencyData['symbol_native'])
-                ->setDecimalDigits($currencyData['decimal_digits'])
-                ->setRounding($currencyData['rounding'])
-                ->setNamePlural($currencyData['name_plural']);
-            $this->entityManager->persist($currency);
-            return $currency;
-        }, $response['data']);
-
-        $this->entityManager->flush();
-
-        return new JsonResponse($this->serializer->normalize(['data' => $currencies], 'json'));
+        return new JsonResponse($this->fetchData('/v1/currencies', ['currencies' => $currencies]));
     }
 
     #[Route('/api/currency_latest', name: 'app_currency_latest')]
@@ -129,53 +89,13 @@ class CurrencyController extends AbstractController
             return new JsonResponse(['error' => 'Invalid date'], 400);
         }
 
-        if (!$this->currencyRepository->findAll()) {
-            return new JsonResponse(['error' => 'No currencies found in the database'], 400);
-        }
-
-        foreach (explode(',', $currencies) as $currency) {
-            if ($currency && !$this->currencyRepository->findOneBy(['code' => $currency])) {
-                return new JsonResponse(['error' => "Currency not found: $currency"], 400);
-            }
-        }
-
-        // If no currencies are provided, get all the currencies from the database
-        $currencies = $currencies ?: implode(',', array_map(fn($currency) => $currency->getCode(), $this->currencyRepository->findAll()));
-
-        // Check if the historical exchange rates are already in the database by date and base currency
-        $historicalExchangeRates = $this->historicalExchangeRateRepository->findBy([
-            'date' => $dateObject,
-            'base_currency' => $this->currencyRepository->findOneBy(['code' => $base_currency]),
-        ]);
-
-        // Return the data from the database if it exists
-        if ($historicalExchangeRates) {
-            $data = array_reduce($historicalExchangeRates, function ($acc, $rate) {
-                $acc[$rate->getDate()->format('Y-m-d')][$rate->getCurrency()->getCode()] = $rate->getValue();
-                return $acc;
-            }, []);
-
-            return new JsonResponse($this->serializer->normalize(['data' => $data], 'json'));
-        }
-
         // Fetch the data from the API and save it to the database
-        $response = $this->fetchData('/v1/historical', [
+
+
+        return new JsonResponse($this->fetchData('/v1/historical', [
             'date' => $dateObject->format('Y-m-d'),
             'base_currency' => $base_currency,
             'currencies' => $currencies
-        ]);
-
-        foreach ($response['data'][$dateObject->format('Y-m-d')] as $currency => $value) {
-            $historicalExchangeRate = (new HistoricalExchangeRate())
-                ->setDate($dateObject)
-                ->setBaseCurrency($this->currencyRepository->findOneBy(['code' => $base_currency]))
-                ->setCurrency($this->currencyRepository->findOneBy(['code' => $currency]))
-                ->setValue($value);
-            $this->entityManager->persist($historicalExchangeRate);
-        }
-
-        $this->entityManager->flush();
-
-        return new JsonResponse($this->serializer->normalize($response, 'json'));
+        ]));
     }
 }
