@@ -97,25 +97,18 @@ class CryptoController extends AbstractController
     ): JsonResponse
     {
         if (empty($id)) {
-            return new JsonResponse([
-                'error' => 'No id provided'
-            ], 400);
+            return new JsonResponse(['error' => 'No id provided'], 400);
         }
 
         $dateObject = new DateTime($date ?: 'today');
-        $base_currency = strtolower($base_currency);
-        $base_currency = explode(',', $base_currency);
+        $base_currencies = explode(',', strtolower($base_currency));
 
-        // first check if the coin is in the database
         $coin = $this->coinRepository->findOneBy(['id' => $id]);
         if (!$coin) {
-            return new JsonResponse([
-                'error' => "Coin with id $id not found"
-            ], 400);
+            return new JsonResponse(['error' => "Coin with id $id not found"], 400);
         }
 
-        $historicalCoinDatas = [];
-        foreach ($base_currency as $bc) {
+        $historicalCoinDatas = array_map(function ($bc) use ($coin, $dateObject) {
             $historicalCoinData = $this->historicalCoinDataRepository->findOneBy([
                 'base_currency' => $bc,
                 'currency' => $coin,
@@ -123,31 +116,32 @@ class CryptoController extends AbstractController
             ]);
 
             if ($historicalCoinData) {
-                $historicalCoinDatas[] = [
+                return [
                     'base_currency' => $historicalCoinData->getBaseCurrency(),
                     'currency' => $historicalCoinData->getCurrency()->getId(),
                     'value' => $historicalCoinData->getValue(),
                     'date' => $historicalCoinData->getDate()->format('Y-m-d')
                 ];
-            } else {
-                return new JsonResponse([
-                    'error' => "Historical data not found for base currency $bc"
-                ], 404);
             }
-        }
 
+            return null;
+        }, $base_currencies);
+
+        $historicalCoinDatas = array_filter($historicalCoinDatas);
         if ($historicalCoinDatas) {
+            if (count($historicalCoinDatas) < count($base_currencies)) {
+                $notFoundBaseCurrency = array_diff($base_currencies, array_column($historicalCoinDatas, 'base_currency'));
+                return new JsonResponse(['error' => "Historical data not found for base currency: " . implode(', ', $notFoundBaseCurrency)], 404);
+            }
             return new JsonResponse($this->serializer->normalize($historicalCoinDatas, 'json'));
         }
 
-        // if the historical data is not in the database, fetch it from the API
         $response = $this->fetchData("/v3/coins/$id/history", [
             'date' => $dateObject->format('d-m-Y'),
             'localization' => 'false'
         ]);
 
-        $historicalCoinDatas = [];
-        foreach ($response['market_data']['current_price'] as $base_currency => $value) {
+        $historicalCoinDatas = array_map(function ($base_currency, $value) use ($coin, $dateObject) {
             $historicalCoinData = (new HistoricalCoinData())
                 ->setBaseCurrency($base_currency)
                 ->setCurrency($coin)
@@ -155,8 +149,8 @@ class CryptoController extends AbstractController
                 ->setDate($dateObject);
 
             $this->entityManager->persist($historicalCoinData);
-            $historicalCoinDatas[] = $historicalCoinData;
-        }
+            return $historicalCoinData;
+        }, array_keys($response['market_data']['current_price']), $response['market_data']['current_price']);
 
         $this->entityManager->flush();
 
