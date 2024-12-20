@@ -108,56 +108,73 @@ const App = () => {
     const fetchData = async () => {
       try {
         const today = new Date();
-        const yesterday = new Date(today); // Clone pour obtenir la date d'hier
-        yesterday.setDate(today.getDate() - 1); // Date d'hier
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
     
-        let startDate = new Date(yesterday); // Initialisation de la date de début
+        let startDate = new Date(yesterday);
     
         // Calculer la date de début en fonction du filtre temporel
         if (timeFilter === "year") {
-          startDate.setFullYear(yesterday.getFullYear() - 1); // 1 an avant hier
+          startDate.setFullYear(yesterday.getFullYear() - 1);
         } else if (timeFilter === "month") {
-          startDate.setMonth(yesterday.getMonth() - 1); // 1 mois avant hier
+          startDate.setMonth(yesterday.getMonth() - 1);
         } else if (timeFilter === "week") {
-          startDate.setDate(yesterday.getDate() - 7); // 7 jours avant hier
+          startDate.setDate(yesterday.getDate() - 7);
         }
     
-        const formattedYesterday = getFormattedDate(yesterday); // Date d'hier
-        const formattedStartDate = getFormattedDate(startDate); // Date de début selon le filtre
+        const formattedYesterday = getFormattedDate(yesterday);
+        const formattedStartDate = getFormattedDate(startDate);
+    
+        // Générer les dates intermédiaires
+        const intermediateDates = generateIntermediateDates(startDate, yesterday, timeFilter);
+    
+        // Logs pour vérifier les dates
+        console.log("Fetching data for dates:", intermediateDates);
     
         const endpoint = "/api/currency_historical";
     
-        // Logs pour vérifier les dates
-        console.log(`Fetching data for start date: ${formattedStartDate}`);
-        console.log(`Fetching data for yesterday: ${formattedYesterday}`);
+        // Récupérer les données pour toutes les dates générées
+        const responses = await Promise.all(
+          intermediateDates.map((date) => axios.get(`${endpoint}?date=${getFormattedDate(date)}`))
+        );
     
-        // Récupérer les données pour les deux dates
-        const responseStart = await axios.get(`${endpoint}?date=${formattedStartDate}`);
-        const responseYesterday = await axios.get(`${endpoint}?date=${formattedYesterday}`);
+        // Extraire les données et les formater
+        const formattedData = responses.map((response, index) => {
+          const date = getFormattedDate(intermediateDates[index]);
+          const rates = response.data.data[date];
+          return { date, ...rates }; // Inclure la date et les taux pour chaque réponse
+        });
     
-        // Extraire les données pour chaque date
-        const ratesDataStart = responseStart.data.data[formattedStartDate]; // Taux à la date de début
-        const ratesDataYesterday = responseYesterday.data.data[formattedYesterday]; // Taux pour hier
-    
-        if (ratesDataStart && ratesDataYesterday) {
-          // Préparer les données pour le graphique
-          const formattedData = [
-            { date: formattedStartDate, ...ratesDataStart },
-            { date: formattedYesterday, ...ratesDataYesterday },
-          ];
-    
-          setData(formattedData); // Mettre à jour les données pour le graphique
-        } else {
-          console.error(
-            "Données invalides reçues pour les taux :",
-            ratesDataStart,
-            ratesDataYesterday
-          );
-        }
+        setData(formattedData); // Mettre à jour les données pour le graphique
       } catch (error) {
         console.error("Erreur lors de la récupération des données :", error);
       }
-    };     
+    };
+    
+    // Fonction pour générer les dates intermédiaires
+    const generateIntermediateDates = (startDate, endDate, filter) => {
+      const dates = [];
+      let currentDate = new Date(startDate);
+    
+      while (currentDate <= endDate) {
+        dates.push(new Date(currentDate)); // Ajouter une copie de la date actuelle
+    
+        if (filter === "year") {
+          currentDate.setMonth(currentDate.getMonth() + 1); // Ajouter un mois
+        } else if (filter === "month") {
+          currentDate.setDate(currentDate.getDate() + 7); // Ajouter une semaine
+        } else if (filter === "week") {
+          currentDate.setDate(currentDate.getDate() + 1); // Ajouter un jour
+        }
+      }
+    
+      return dates;
+    };
+    
+    // Fonction pour formater une date au format requis (AAAA-MM-JJ)
+    const getFormattedDate = (date) => {
+      return date.toISOString().split("T")[0];
+    };         
 
     fetchData();
   }, [timeFilter]);
