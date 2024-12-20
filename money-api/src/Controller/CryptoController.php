@@ -16,6 +16,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -173,6 +175,31 @@ class CryptoController extends AbstractController
         ], $historicalCoinDatas);
 
         return new JsonResponse($this->serializer->normalize($historicalCoinDatas, 'json'));
+    }
+
+    #[Route('/api/crypto_historical_update', name: 'app_crypto_historical_update')]
+    public function historicalUpdate(
+        HubInterface                $hub,
+        #[MapQueryParameter] string $id,
+        #[MapQueryParameter] string $date = '',
+        #[MapQueryParameter] string $base_currency = ''
+    ): JsonResponse
+    {
+        $topics = "i_$id-d_$date-bc_$base_currency";
+
+        $update = new Update(
+            $topics,
+            $this->historical($id, $date, $base_currency)->getContent()
+        );
+
+        $hub->publish($update);
+
+        return new JsonResponse([
+            'status' => 'update published!',
+            'parameters' => compact('id','date', 'base_currency'),
+            'topics' => $topics,
+            'data' => $update->getData(),
+        ]);
     }
 
     #[Route('/api/crypto_supported_currencies', name: 'app_crypto_supported_currencies')]
