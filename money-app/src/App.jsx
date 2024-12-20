@@ -67,6 +67,11 @@ const App = () => {
             label: currency.name,
           }));
           setCurrenciesOptions(options); // Remplir le sélecteur de devises
+
+          // Initialiser les devises sélectionnées si elles ne sont pas définies
+          if (!selectedCurrencies.length) {
+            setSelectedCurrencies(options.map((opt) => opt.value));
+          }
         } else {
           console.error("Données invalides pour les devises :", currencies);
         }
@@ -97,8 +102,8 @@ const App = () => {
           startDate.setDate(yesterday.getDate() - 7);
         }
 
-        const formattedYesterday = getFormattedDate(yesterday);
         const formattedStartDate = getFormattedDate(startDate);
+        const formattedEndDate = getFormattedDate(yesterday);
 
         // Générer les dates intermédiaires
         const intermediateDates = generateIntermediateDates(startDate, yesterday, timeFilter);
@@ -130,9 +135,7 @@ const App = () => {
   const filteredGraphData = data.map((entry) => {
     const filteredEntry = { date: entry.date };
     selectedCurrencies.forEach((currency) => {
-      if (entry[currency]) {
-        filteredEntry[currency] = entry[currency];
-      }
+      filteredEntry[currency] = entry[currency] || null; // Ajouter null si la devise n'est pas présente
     });
     return filteredEntry;
   });
@@ -147,11 +150,14 @@ const App = () => {
       <div style={{ marginBottom: "20px" }}>
         <label>Sélectionnez les devises à afficher :</label>
         <Select
-          options={currenciesOptions} 
+          options={currenciesOptions}
           isMulti
           onChange={(selectedOptions) =>
-            setSelectedCurrencies(selectedOptions.map((opt) => opt.value)) 
+            setSelectedCurrencies(selectedOptions.map((opt) => opt.value))
           }
+          value={currenciesOptions.filter((option) =>
+            selectedCurrencies.includes(option.value)
+          )} // Afficher les devises sélectionnées
         />
       </div>
 
@@ -159,9 +165,9 @@ const App = () => {
       <div style={{ marginBottom: "20px" }}>
         <label>Filtrer l'évolution par :</label>
         <Select
-          options={timeOptions} 
-          onChange={(selectedOption) => setTimeFilter(selectedOption.value)} 
-          defaultValue={timeOptions[1]} 
+          options={timeOptions}
+          onChange={(selectedOption) => setTimeFilter(selectedOption.value)}
+          defaultValue={timeOptions.find((option) => option.value === timeFilter)}
         />
       </div>
 
@@ -182,7 +188,7 @@ const App = () => {
               key={currency}
               type="monotone"
               dataKey={currency}
-              stroke={colors[index % colors.length]} 
+              stroke={colors[index % colors.length]}
               activeDot={{ r: 8 }}
             />
           ))}

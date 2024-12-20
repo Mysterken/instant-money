@@ -54,8 +54,6 @@ class CurrencyController extends AbstractController
     #[Route('/api/currency_list', name: 'app_currency_list')]
     public function list(#[MapQueryParameter] string $currencies = ''): JsonResponse
     {
-    
-
         return new JsonResponse($this->fetchData('/v1/currencies', ['currencies' => $currencies]));
     }
 
