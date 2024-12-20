@@ -1,49 +1,4 @@
-/*import { useEffect, useState } from "react";
-import axios from "axios";
-
-function App() {
-  const [rates, setRates] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    // Appel API vers le backend Symfony
-    axios.get("http://localhost:8000/api/rates")
-      .then((response) => {
-        setRates(response.data.rates);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Erreur API :", err);
-        setError("Erreur lors du chargement des taux de change.");
-        setLoading(false);
-      });
-  }, []);
-
-  return (
-    <div>
-      <h1>Taux de Change</h1>
-      {loading ? (
-        <p>Chargement...</p>
-      ) : error ? (
-        <p>{error}</p>
-      ) : (
-        <ul>
-          {Object.entries(rates).map(([currency, value]) => (
-            <li key={currency}>
-              {currency} : {value}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-export default App;*/
-
-//API -> JSON
-import './App.css';
-import React, { useState, useEffect } from "react";
+/*import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Select from "react-select";
 import {
@@ -64,11 +19,27 @@ const timeOptions = [
   { value: "week", label: "Par semaine" },
 ];
 
+// Tableau de couleurs distinctes
+const colors = [
+  "#8884d8", "#82ca9d", "#ff7300", "#ff0000", "#0088fe", "#00c49f", "#ffbb28", "#ff8042",
+  "#a4de6c", "#d0ed57", "#8dd1e1", "#83a6ed", "#d0ed57", "#a4de6c",
+];
+
 const App = () => {
   const [data, setData] = useState([]); // Données brutes
   const [currenciesOptions, setCurrenciesOptions] = useState([]); // Options des devises
   const [selectedCurrencies, setSelectedCurrencies] = useState([]); // Devises sélectionnées
   const [timeFilter, setTimeFilter] = useState("month"); // Filtre temporel
+  const [currencyColors, setCurrencyColors] = useState({}); // Couleurs pour chaque devise
+
+  // Fonction pour formater une date au format YYYY-MM-DD
+  const getFormattedDate = (date) => {
+    const d = new Date(date);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const year = d.getFullYear();
+    return `${year}-${month < 10 ? `0${month}` : month}-${day < 10 ? `0${day}` : day}`;
+  };
 
   // Récupération des devises au chargement
   useEffect(() => {
@@ -98,50 +69,77 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const endpoint ="/api/currency_historical"
-
-        const response = await axios.get(endpoint+"?date=2024-12-18");
-        const response2 = await axios.get(endpoint+"?date=2023-12-18");
-        const ratesData = response.data.data["2024-12-18"];
-        const ratesData2 = response2.data.data["2023-12-18"];
-
-        if (ratesData) {
-          if (timeFilter === "year") {
-            // Formatage des données pour les taux historiques
-            const formattedData = Object.entries(ratesData).map(
-              ([date, rates]) => ({
-                date,
-                ...rates, // Inclure toutes les devises avec leurs valeurs
-              })
-            );
-            console.log(formattedData)
-            setData(formattedData);
-          } else {
-            // Formatage pour les taux récents
-            const today = new Date().toISOString().split("T")[0];
-            console.log(ratesData)
-            console.log(ratesData2)
-            setData([
-              {
-                date: "2023-12-19",
-                ...ratesData,
-              },
-              {
-                date: "2024-12-18",
-                ...ratesData2,
-              },
-            ]);
-          }
-        } else {
-          console.error("Données invalides pour les cours :", ratesData);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+    
+        let startDate = new Date(yesterday);
+    
+        // Calculer la date de début en fonction du filtre temporel
+        if (timeFilter === "year") {
+          startDate.setFullYear(yesterday.getFullYear() - 1);
+        } else if (timeFilter === "month") {
+          startDate.setMonth(yesterday.getMonth() - 1);
+        } else if (timeFilter === "week") {
+          startDate.setDate(yesterday.getDate() - 7);
         }
+    
+        const formattedYesterday = getFormattedDate(yesterday);
+        const formattedStartDate = getFormattedDate(startDate);
+    
+        // Générer les dates intermédiaires
+        const intermediateDates = generateIntermediateDates(startDate, yesterday, timeFilter);
+    
+        const endpoint = "/api/currency_historical";
+    
+        // Récupérer les données pour toutes les dates générées
+        const responses = await Promise.all(
+          intermediateDates.map((date) => axios.get(`${endpoint}?date=${getFormattedDate(date)}`))
+        );
+    
+        // Extraire les données et les formater
+        const formattedData = responses.map((response, index) => {
+          const date = getFormattedDate(intermediateDates[index]);
+          const rates = response.data.data[date];
+          return { date, ...rates }; // Inclure la date et les taux pour chaque réponse
+        });
+    
+        setData(formattedData); // Mettre à jour les données pour le graphique
       } catch (error) {
         console.error("Erreur lors de la récupération des données :", error);
       }
     };
+    
+    const generateIntermediateDates = (startDate, endDate, filter) => {
+      const dates = [];
+      let currentDate = new Date(startDate);
+    
+      while (currentDate <= endDate) {
+        dates.push(new Date(currentDate)); // Ajouter une copie de la date actuelle
+    
+        if (filter === "year") {
+          currentDate.setMonth(currentDate.getMonth() + 1); // Ajouter un mois
+        } else if (filter === "month") {
+          currentDate.setDate(currentDate.getDate() + 7); // Ajouter une semaine
+        } else if (filter === "week") {
+          currentDate.setDate(currentDate.getDate() + 1); // Ajouter un jour
+        }
+      }
+    
+      return dates;
+    };
 
     fetchData();
   }, [timeFilter]);
+
+  // Mettre à jour les couleurs pour les devises sélectionnées
+  useEffect(() => {
+    const newCurrencyColors = {};
+    selectedCurrencies.forEach((currency, index) => {
+      newCurrencyColors[currency] = colors[index % colors.length]; // Assigner une couleur unique
+    });
+    setCurrencyColors(newCurrencyColors);
+  }, [selectedCurrencies]);
 
   // Filtrage des données pour le graphique
   const filteredGraphData = data.map((entry) => {
@@ -155,10 +153,10 @@ const App = () => {
   });
 
   return (
-    <div className="graph-container">
-      <h1>Évolution des cours de change</h1>
+    <div style={{ padding: "20px" }}>
+      <h1>Évolution des Cours de Change</h1>
 
-      {/* Menu déroulant pour sélectionner les devises */}
+      {/* Menu déroulant pour sélectionner les devises *//*} /*
       <div style={{ marginBottom: "20px" }}>
         <label>Sélectionnez les devises à afficher :</label>
         <Select
@@ -170,7 +168,7 @@ const App = () => {
         />
       </div>
 
-      {/* Menu déroulant pour le filtre temporel */}
+      {/* Menu déroulant pour le filtre temporel *//*} /*
       <div style={{ marginBottom: "20px" }}>
         <label>Filtrer l'évolution par :</label>
         <Select
@@ -180,7 +178,7 @@ const App = () => {
         />
       </div>
 
-      {/* Graphique */}
+      {/* Graphique *//*} /*
       <ResponsiveContainer width="100%" height={400}>
         <LineChart
           data={filteredGraphData}
@@ -191,18 +189,78 @@ const App = () => {
           <YAxis />
           <Tooltip />
           <Legend />
-          {/* Tracer les lignes pour chaque devise sélectionnée */}
+          {/* Tracer les lignes pour chaque devise sélectionnée *//*}/*
           {selectedCurrencies.map((currency) => (
             <Line
               key={currency}
               type="monotone"
               dataKey={currency}
-              stroke="#8884d8" // Couleur par défaut
+              stroke={currencyColors[currency]} // Appliquer la couleur unique
               activeDot={{ r: 8 }}
             />
           ))}
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+};
+
+export default App;*/
+import './App.css';
+import React, { useState, useEffect } from "react";
+import { fetchCurrencies, fetchHistoricalData } from "./services/currencyService";
+import { assignColorsToCurrencies } from "./utils/colorUtils";
+import CurrencySelector from "./components/CurrencySelector";
+import TimeFilterSelector from "./components/TimeFilterSelector";
+import ExchangeRateChart from "./components/ExchangeRateChart";
+
+const App = () => {
+  const [data, setData] = useState([]);
+  const [currenciesOptions, setCurrenciesOptions] = useState([]);
+  const [selectedCurrencies, setSelectedCurrencies] = useState([]);
+  const [timeFilter, setTimeFilter] = useState("month");
+  const [currencyColors, setCurrencyColors] = useState({});
+
+  useEffect(() => {
+    // Récupération des devises
+    const loadCurrencies = async () => {
+      const options = await fetchCurrencies();
+      setCurrenciesOptions(options);
+    };
+    loadCurrencies();
+  }, []);
+
+  useEffect(() => {
+    // Récupération des données selon le filtre temporel
+    const loadHistoricalData = async () => {
+      const formattedData = await fetchHistoricalData(timeFilter);
+      setData(formattedData);
+    };
+    loadHistoricalData();
+  }, [timeFilter]);
+
+  useEffect(() => {
+    // Mise à jour des couleurs des devises sélectionnées
+    const newCurrencyColors = assignColorsToCurrencies(selectedCurrencies);
+    setCurrencyColors(newCurrencyColors);
+  }, [selectedCurrencies]);
+
+  return (
+    <div className="graph-container">
+      <h1>Évolution des cours de change</h1>
+      <CurrencySelector
+        options={currenciesOptions}
+        onSelect={setSelectedCurrencies}
+      />
+      <TimeFilterSelector
+        selectedFilter={timeFilter}
+        onChange={setTimeFilter}
+      />
+      <ExchangeRateChart
+        data={data}
+        selectedCurrencies={selectedCurrencies}
+        currencyColors={currencyColors}
+      />
     </div>
   );
 };

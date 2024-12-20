@@ -14,6 +14,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
@@ -54,28 +56,23 @@ class CurrencyController extends AbstractController
     #[Route('/api/currency_list', name: 'app_currency_list')]
     public function list(#[MapQueryParameter] string $currencies = ''): JsonResponse
     {
-        $DBcurrencies = empty($currencies)
-            ? $this->currencyRepository->findAll()
-            : $this->currencyRepository->findBy(['code' => explode(',', $currencies)]);
+        $DBcurrencies = $currencies
+            ? $this->currencyRepository->findBy(['code' => explode(',', $currencies)])
+            : $this->currencyRepository->findAll();
 
-        if (!empty($DBcurrencies)) {
-            // add the code of the currency as the key of the array and 'data' as the key above everything
-            $DBcurrencies = array_reduce(
-                $DBcurrencies,
-                function ($acc, $currency) {
-                    $acc[$currency->getCode()] = [
-                        'symbol' => $currency->getSymbol(),
-                        'name' => $currency->getName(),
-                        'symbol_native' => $currency->getSymbolNative(),
-                        'decimal_digits' => $currency->getDecimalDigits(),
-                        'rounding' => $currency->getRounding(),
-                        'code' => $currency->getCode(),
-                        'name_plural' => $currency->getNamePlural()
-                    ];
-                    return $acc;
-                },
-                []
-            );
+        if ($DBcurrencies) {
+            $DBcurrencies = array_reduce($DBcurrencies, function ($acc, $currency) {
+                $acc[$currency->getCode()] = [
+                    'symbol' => $currency->getSymbol(),
+                    'name' => $currency->getName(),
+                    'symbol_native' => $currency->getSymbolNative(),
+                    'decimal_digits' => $currency->getDecimalDigits(),
+                    'rounding' => $currency->getRounding(),
+                    'code' => $currency->getCode(),
+                    'name_plural' => $currency->getNamePlural()
+                ];
+                return $acc;
+            }, []);
 
             return new JsonResponse($this->serializer->normalize(['data' => $DBcurrencies], 'json'));
         }
@@ -109,6 +106,34 @@ class CurrencyController extends AbstractController
             'base_currency' => $base_currency,
             'currencies' => $currencies
         ]));
+    }
+
+    /**
+     * @throws DateMalformedStringException
+     */
+    #[Route('/api/currency_historical_update', name: 'app_currency_historical_update')]
+    public function historical_update(
+        HubInterface                $hub,
+        #[MapQueryParameter] string $date = '',
+        #[MapQueryParameter] string $base_currency = 'USD',
+        #[MapQueryParameter] string $currencies = '',
+    ): JsonResponse
+    {
+        $topics = "ch-d_$date-bc_$base_currency-c_$currencies";
+
+        $update = new Update(
+            "$topics",
+            $this->historical($date, $base_currency, $currencies)->getContent()
+        );
+
+        $hub->publish($update);
+
+        return new JsonResponse([
+            'status' => 'update published!',
+            'parameters' => compact('date', 'base_currency', 'currencies'),
+            'topics' => $topics,
+            'data' => $update->getData(),
+        ]);
     }
 
     /**
