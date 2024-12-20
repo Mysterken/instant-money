@@ -41,32 +41,42 @@ To get a local copy up and running follow these simple steps.
 ### Installation
 
 1. Clone the repo
-   ```sh
-   git clone
-   ```
+>   ```sh
+>   git clone
+>   ```
+   
+2. Add API keys to an `.env.local` file
+>   ```sh
+>   cd money-api
+>   touch .env.local
+>   ```
+>   and add the API keys to the `.env.local` file
+>    ```dotenv
+>    CURRENCY_APIKEY=your-currency-api-key
+>    CRYPTO_APIKEY=your-crypto-api-key
+>    ```
 
-2. Build and run the containers
-   ```sh
-   docker compose build --no-cache
-   docker compose up --pull always -d --wait
-   ```
-    or with make
-    ```sh
-    make build
-    make up
-    ```
+3. Build and run the containers
+>   ```sh
+>   docker compose build --no-cache
+>   docker compose up --pull always -d --wait
+>   ```
+>    or with make
+>    ```sh
+>    make build
+>    make up
+>    ```
 
-3. Open `https://localhost` in your browser  
-
-
-4. To stop the containers
-   ```sh
-   docker compose down --remove-orphans
-   ```
-   or with make
-   ```sh
-    make down
-   ```
+4. Open `https://localhost` in your browser
+<br><br>
+5. To stop the containers
+>   ```sh
+>   docker compose down --remove-orphans
+>   ```
+>   or with make
+>   ```sh
+>    make down
+>   ```
 
 ### Notes
 
