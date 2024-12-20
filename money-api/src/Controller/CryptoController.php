@@ -96,11 +96,19 @@ class CryptoController extends AbstractController
     public function historical(
         #[MapQueryParameter] string $id,
         #[MapQueryParameter] string $date = '',
-        #[MapQueryParameter] string $base_currency = 'USD,EUR,JPY'
+        #[MapQueryParameter] string $base_currency = ''
     ): JsonResponse
     {
         if (empty($id)) {
             return new JsonResponse(['error' => 'No id provided'], 400);
+        }
+
+        // if $base_currency is not provided, default to all supported currencies that are stored in the database
+        if (empty($base_currency)) {
+            $base_currencies = $this->coinGeckoSupportedCurrencyRepository->findAll();
+            if ($base_currencies) {
+                $base_currency = implode(',', array_map(fn($currency) => $currency->getCode(), $base_currencies));
+            }
         }
 
         $dateObject = new DateTime($date ?: 'today');
