@@ -19,11 +19,18 @@ const timeOptions = [
   { value: "week", label: "Par semaine" },
 ];
 
+// Tableau de couleurs distinctes
+const colors = [
+  "#8884d8", "#82ca9d", "#ff7300", "#ff0000", "#0088fe", "#00c49f", "#ffbb28", "#ff8042",
+  "#a4de6c", "#d0ed57", "#8dd1e1", "#83a6ed", "#d0ed57", "#a4de6c",
+];
+
 const App = () => {
   const [data, setData] = useState([]); // Données brutes
   const [currenciesOptions, setCurrenciesOptions] = useState([]); // Options des devises
   const [selectedCurrencies, setSelectedCurrencies] = useState([]); // Devises sélectionnées
   const [timeFilter, setTimeFilter] = useState("month"); // Filtre temporel
+  const [currencyColors, setCurrencyColors] = useState({}); // Couleurs pour chaque devise
 
   // Fonction pour formater une date au format YYYY-MM-DD
   const getFormattedDate = (date) => {
@@ -83,9 +90,6 @@ const App = () => {
         // Générer les dates intermédiaires
         const intermediateDates = generateIntermediateDates(startDate, yesterday, timeFilter);
     
-        // Logs pour vérifier les dates
-        console.log("Fetching data for dates:", intermediateDates);
-    
         const endpoint = "/api/currency_historical";
     
         // Récupérer les données pour toutes les dates générées
@@ -106,7 +110,6 @@ const App = () => {
       }
     };
     
-    // Fonction pour générer les dates intermédiaires
     const generateIntermediateDates = (startDate, endDate, filter) => {
       const dates = [];
       let currentDate = new Date(startDate);
@@ -125,14 +128,18 @@ const App = () => {
     
       return dates;
     };
-    
-    // Fonction pour formater une date au format requis (AAAA-MM-JJ)
-    const getFormattedDate = (date) => {
-      return date.toISOString().split("T")[0];
-    };         
 
     fetchData();
   }, [timeFilter]);
+
+  // Mettre à jour les couleurs pour les devises sélectionnées
+  useEffect(() => {
+    const newCurrencyColors = {};
+    selectedCurrencies.forEach((currency, index) => {
+      newCurrencyColors[currency] = colors[index % colors.length]; // Assigner une couleur unique
+    });
+    setCurrencyColors(newCurrencyColors);
+  }, [selectedCurrencies]);
 
   // Filtrage des données pour le graphique
   const filteredGraphData = data.map((entry) => {
@@ -188,7 +195,7 @@ const App = () => {
               key={currency}
               type="monotone"
               dataKey={currency}
-              stroke="#8884d8" // Couleur par défaut
+              stroke={currencyColors[currency]} // Appliquer la couleur unique
               activeDot={{ r: 8 }}
             />
           ))}
